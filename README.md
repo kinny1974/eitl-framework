@@ -1,4 +1,4 @@
-# EitL Framework v3.1
+# EitL Framework v1.0b
 
 > **Framework**: Engineering in the Loop (EitL) for OpenCode-AI
 > **Version**: 3.1
