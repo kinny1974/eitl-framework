@@ -1,0 +1,207 @@
+name: CI — EitL Framework
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancela corridas anteriores del mismo PR/ref (ahorra minutos de CI)
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plugin:
+    name: Plugin context-guard (Gate 4 + 6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: framework/.opencode/plugin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: framework/.opencode/plugin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (Gate 5 — tsc --noEmit, 0 errores)
+        run: npm run typecheck
+
+      - name: Unit tests + coverage (Gate 4 — ≥ 80%, 0 fallos)
+        run: npm run test:coverage
+
+      # Nota: `npm run bench` es informativo (vitest bench no tiene thresholds
+      # nativos). Los NFRs del Gate 6 se validan contra `eitl-artifacts/06`
+      # comparando las corridas; este paso solo garantiza que el bench no falla.
+      - name: Benchmarks (Gate 6 — referencia; NFRs en eitl-artifacts/06)
+        run: npm run bench
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: framework/.opencode/plugin/coverage/
+          if-no-files-found: ignore
+
+  bundle:
+    name: Bundle estructural (10 agentes · 21 skills · scripts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sintaxis init-eitl.sh
+        run: bash -n init-scripts/init-eitl.sh
+
+      - name: Agentes y skills esperados
+        run: |
+          echo "agentes: $(ls framework/.opencode/agents/ | wc -l) (esperado 10)"
+          echo "skills: $(ls framework/.opencode/skills/ | wc -l) (esperado 21)"
+          test "$(ls framework/.opencode/agents/ | wc -l)" -eq 10
+          test "$(ls framework/.opencode/skills/ | wc -l)" -eq 21
+
+      - name: JSON/plantillas válidas
+        run: |
+          # JSON puros
+          for f in project-config-template/tui.json.template framework/.opencode/plugin/tsconfig.json framework/.opencode/plugin/package.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" && echo "OK $f"
+          done
+          # JSONC con placeholders {{...}}: sustituir antes de parsear
+          node -e "
+            const s = require('fs').readFileSync('project-config-template/opencode.jsonc.template','utf8')
+              .replace(/\{\{[A-Z0-9_]+\}\}/g, '0');
+            JSON.parse(s);
+            console.log('OK project-config-template/opencode.jsonc.template');
+          "
+
+      - name: Re-inicialización reemplaza .opencode (T-21/M8)
+        run: |
+          # El script debe eliminar el .opencode existente (tras backup) antes de
+          # copiar el framework, para no generar la estructura anidada .opencode/.opencode/.
+          if ! grep -q "rm -rf .opencode" init-scripts/init-eitl.sh; then
+            echo "::error::init-eitl.sh no reemplaza .opencode existente (M8)"
+            exit 1
+          fi
+          if ! grep -q 'Remove-Item -Recurse -Force \".opencode\"' init-scripts/init-eitl.ps1; then
+            echo "::error::init-eitl.ps1 no reemplaza .opencode existente (M8)"
+            exit 1
+          fi
+          echo "OK: los init scripts reemplazan (no anidan) .opencode"
+
+      - name: Sin secretos hardcodeados (T-10/H1)
+        run: |
+          if grep -rn "192.168.2.111\|kinny-hellhouse-2026" init-scripts/ project-config-template/; then
+            echo "::error::Secretos hardcodeados detectados (H1)"
+            exit 1
+          fi
+          echo "OK: sin secretos en scripts y plantillas"
+
+      - name: MEMORY_ENABLED respetado en la plantilla (T-17/M5)
+        run: |
+          if ! grep -q "{{MEMORY_ENABLED}}" project-config-template/opencode.jsonc.template; then
+            echo "::error::La plantilla no usa {{MEMORY_ENABLED}} (M5)"
+            exit 1
+          fi
+          if grep -q '"enabled": true' project-config-template/opencode.jsonc.template; then
+            echo "::error::'enabled: true' hardcodeado en la plantilla (M5)"
+            exit 1
+          fi
+          echo "OK: la plantilla honra MEMORY_ENABLED"
+
+      - name: Nomenclatura unificada de artefactos (T-15/M3)
+        run: |
+          if [ ! -f framework/.opencode/eitl/templates/02_Architecture_SDD.md.template ]; then
+            echo "::error::Falta la plantilla 02_Architecture_SDD.md.template (M3)"
+            exit 1
+          fi
+          # Scope: framework/.opencode/eitl/ cubre templates/ e INIT_STATE.md
+          # (ci.yml queda fuera del scope por diseño: el propio check nombra el patron).
+          if grep -rq "02_Arquitectura_SDD" framework/.opencode/eitl/ init-scripts/ project-config-template/; then
+            echo "::error::Nomenclatura espanola 02_Arquitectura_SDD detectada (M3)"
+            exit 1
+          fi
+          echo "OK: nomenclatura de artefactos unificada en ingles"
+
+      - name: Validator cubre los 6 gates (T-16/M9)
+        run: |
+          V=framework/.opencode/agents/validator.md
+          for gate in "Gate 4 (tests)" "Gate 5 (qa)" "Gate 6 (performance)"; do
+            if ! grep -q "### $gate" "$V"; then
+              echo "::error::validator.md no define $gate (M9)"
+              exit 1
+            fi
+          done
+          if ! grep -q "scrum_plan|sdd|tdd_plan|tests|qa|performance" "$V"; then
+            echo "::error::validator.md no lista los tipos tests|qa|performance (M9)"
+            exit 1
+          fi
+          echo "OK: validator.md cubre los 6 gates"
+
+      - name: Plugins externos verificados (T-18/L1)
+        run: |
+          OC=project-config-template/opencode.jsonc.template
+          TUI=project-config-template/tui.json.template
+          # El array plugin se resuelve como nombres npm exactos; comprobar los
+          # corregidos y que no reaparecen nombres inexistentes ni se pierde context-guard.
+          for pat in "@tarquinen/opencode-dcp" "@slkiser/opencode-quota" "context-guard" "opencode-snip" "opencode-working-memory" "envsitter-guard"; do
+            if ! grep -q "$pat" "$OC"; then
+              echo "::error::Falta el plugin $pat en opencode.jsonc.template (L1)"
+              exit 1
+            fi
+          done
+          if ! grep -q "@slkiser/opencode-quota" "$TUI"; then
+            echo "::error::Falta @slkiser/opencode-quota en tui.json.template (L1)"
+            exit 1
+          fi
+          if grep -q "opencode-review" "$OC"; then
+            echo "::error::opencode-review no existe como paquete npm; no debe listarse (L1)"
+            exit 1
+          fi
+          if grep -q '"dynamic-context-pruning"\|"opencode-quota"' "$OC" "$TUI"; then
+            echo "::error::Nombre npm inexistente en el array plugin (L1)"
+            exit 1
+          fi
+          echo "OK: plugins externos con nombres npm validos"
+
+  e2e:
+    name: E2E smoke test (T-13, inicialización)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Smoke test estructural (init + re-init sin anidamiento)
+        run: bash e2e/smoke-e2e.sh
+
+      # El smoke live (OPENCODE_SMOKE=1) requiere un LLM real y el CLI opencode;
+      # se ejecuta bajo demanda:  gh workflow run ci.yml --ref main
+      # con la variable OPENCODE_SMOKE definida (ver e2e/smoke-e2e.sh §6).
+
+  powershell:
+    name: init-eitl.ps1 (parse PowerShell)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse PowerShell
+        shell: pwsh
+        run: |
+          $errors = @()
+          $tokens = @()
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            "init-scripts/init-eitl.ps1", [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { "PARSE ERROR: $($_.Message)" }
+            exit 1
+          }
+          Write-Host "PS1_OK"

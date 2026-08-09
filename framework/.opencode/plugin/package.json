@@ -1,0 +1,20 @@
+{
+  "name": "eitl-context-guard-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Context Guard plugin for the EitL pipeline — unit tests, coverage and benchmarks (package.json is gitignored by design).",
+  "scripts": {
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "bench": "vitest bench",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "^1.18.15",
+    "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^4.1.10",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.10"
+  }
+}

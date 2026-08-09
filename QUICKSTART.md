@@ -22,12 +22,12 @@
 
 ### Windows (PowerShell)
 ```powershell
-Expand-Archive -Path "eitl-framework-v3.1.zip" -DestinationPath "$env:USERPROFILE\Tools\eitl-framework"
+Expand-Archive -Path "eitl-framework-v1.0b.zip" -DestinationPath "$env:USERPROFILE\Tools\eitl-framework"
 ```
 
 ### Linux / macOS (Bash)
 ```bash
-unzip eitl-framework-v3.1.zip -d ~/tools/eitl-framework
+unzip eitl-framework-v1.0b.zip -d ~/tools/eitl-framework
 ```
 
 ---
@@ -50,7 +50,7 @@ Then initialize:
 # Windows
 mkdir my-first-eitl-project; cd my-first-eitl-project
 $env:MEMORY_ENABLED="false"
-& "$env:USERPROFILE\Tools\eitl-framework\init-scripts\init-eitl.ps1" -ProjectName "my-first-eitl-project" -MemoryEnabled $false
+& "$env:USERPROFILE\Tools\eitl-framework\init-scripts\init-eitl.ps1" -ProjectName "my-first-eitl-project" -CpuBaseUrl "http://localhost:11434/v1" -GpuBaseUrl "http://localhost:11434/v1" -ApiKey "not-needed"
 ```
 
 ```bash

@@ -12,7 +12,7 @@
         "MEMORY_SERVER_URL": "{{MEMORY_SERVER_URL}}",
         "KINNYCODE_PROJECT_ID": "{{KINNYCODE_PROJECT_ID}}"
       },
-      "enabled": true
+      "enabled": {{MEMORY_ENABLED}}
     }
   },
   "provider": {
@@ -64,11 +64,10 @@
   "plugin": [
     "opencode-working-memory",
     "context-guard",
-    "dynamic-context-pruning",
+    "@tarquinen/opencode-dcp",
     "opencode-snip",
-    "opencode-review",
     "envsitter-guard",
-    "opencode-quota"
+    "@slkiser/opencode-quota"
   ],
   "agent": {
     "scrum-master": {
@@ -114,7 +113,7 @@
       "color": "#2196F3"
     },
     "architect": {
-      "description": "Arquitecto de Software Senior que disena arquitecturas antes de cualquier linea de codigo (Forward Engineering estricto). Genera el Software Design Document 02_Arquitectura_SDD.md.",
+      "description": "Arquitecto de Software Senior que disena arquitecturas antes de cualquier linea de codigo (Forward Engineering estricto). Genera el Software Design Document 02_Architecture_SDD.md.",
       "mode": "subagent",
       "prompt": "{file:agents/architect.md}",
       "permission": {

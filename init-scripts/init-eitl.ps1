@@ -9,12 +9,50 @@
 
 param(
     [string]$ProjectName = "",
-    [string]$KinnyCodePath = "C:\ProgramData\KinnyCode\memory",
-    [string]$CpuBaseUrl = "http://192.168.2.111:8002/v1",
-    [string]$GpuBaseUrl = "http://192.168.2.111:8001/v1",
-    [string]$ApiKey = "kinny-hellhouse-2026",
-    [string]$MemoryServerUrl = "http://127.0.0.1:8005"
+    [string]$KinnyCodePath = "",
+    [string]$CpuBaseUrl = "",
+    [string]$GpuBaseUrl = "",
+    [string]$ApiKey = "",
+    [string]$MemoryServerUrl = "",
+    [string]$MemoryEnabled = ""
 )
+
+# Seguridad (H1/T-10): sin secretos hardcodeados. Los valores se resuelven asi:
+#   1) parametro explicito (-CpuBaseUrl ...) -> gana
+#   2) variable de entorno (CPU_BASEURL ...) -> fallback
+#   3) default NO sensible (localhost / placeholder) -> ultimo recurso
+# PSBoundParameters solo contiene los parametros que el usuario paso realmente.
+if (-not $PSBoundParameters.ContainsKey('KinnyCodePath')) { $KinnyCodePath = $env:KINYCODE_PATH }
+if (-not $KinnyCodePath) { $KinnyCodePath = "C:\ProgramData\KinnyCode\memory" }
+if (-not $PSBoundParameters.ContainsKey('CpuBaseUrl')) { $CpuBaseUrl = $env:CPU_BASEURL }
+if (-not $CpuBaseUrl) { $CpuBaseUrl = "http://localhost:11434/v1" }
+if (-not $PSBoundParameters.ContainsKey('GpuBaseUrl')) { $GpuBaseUrl = $env:GPU_BASEURL }
+if (-not $GpuBaseUrl) { $GpuBaseUrl = "http://localhost:11434/v1" }
+# Flag para avisar SOLO cuando el placeholder lo aplica el script (no cuando el
+# usuario paso -ApiKey 'not-needed' o exporto API_KEY=not-needed a proposito).
+$warnApiKey = $false
+if (-not $PSBoundParameters.ContainsKey('ApiKey')) { $ApiKey = $env:API_KEY }
+if (-not $ApiKey) { $ApiKey = "not-needed"; $warnApiKey = $true }
+if (-not $PSBoundParameters.ContainsKey('MemoryServerUrl')) { $MemoryServerUrl = $env:MEMORY_URL }
+if (-not $MemoryServerUrl) { $MemoryServerUrl = "http://127.0.0.1:8005" }
+# Memoria (M5/T-17): el script ahora HONRA MEMORY_ENABLED. Default "false"
+# (standalone, sin servidor de memoria) coherente con .env.template/README.
+# -MemoryEnabled $true o env MEMORY_ENABLED=true generan el MCP con enabled:true.
+if (-not $PSBoundParameters.ContainsKey('MemoryEnabled')) { $MemoryEnabled = $env:MEMORY_ENABLED }
+if (-not $MemoryEnabled) { $MemoryEnabled = "false" }
+# Normalizar a minusculas: acepta -MemoryEnabled $true (se liga como 'True'),
+# 'TRUE'/'FALSE'/'True'/'False' (la comparacion -ne de PowerShell es case-insensitive
+# y podria dejar pasar valores raros al JSON si no normalizamos).
+$MemoryEnabled = "$MemoryEnabled".ToLowerInvariant()
+if ($MemoryEnabled -ne "true" -and $MemoryEnabled -ne "false") {
+    Write-Host "AVISO: MemoryEnabled='$MemoryEnabled' no reconocido; se usara 'false'." -ForegroundColor Yellow
+    $MemoryEnabled = "false"
+}
+
+if ($warnApiKey) {
+    Write-Host "AVISO: ApiKey no definida; se usara el placeholder 'not-needed'." -ForegroundColor Yellow
+    Write-Host "  Pasa -ApiKey o define la variable de entorno API_KEY antes de ejecutar." -ForegroundColor Yellow
+}
 
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "  EitL Master Bundle - Inicializador" -ForegroundColor Cyan
@@ -42,11 +80,15 @@ if (-not (Test-Path $FrameworkDir)) {
     exit 1
 }
 
-# 4. Backup si existe .opencode
+# 4. Backup y REEMPLAZO si existe .opencode (M8): el backup se conserva, pero el
+#    .opencode existente se elimina antes de copiar el framework para evitar la
+#    estructura anidada .opencode/.opencode/ que hacía el pipeline no funcional.
 if (Test-Path ".opencode") {
     $BackupName = ".opencode-backup-$(Get-Date -Format 'yyyyMMdd_HHmmss')"
     Write-Host "[2/7] Backup de .opencode existente -> $BackupName" -ForegroundColor Yellow
     Copy-Item -Recurse -Force ".opencode" $BackupName
+    Write-Host "      Reemplazando .opencode existente (copia limpia del framework)..." -ForegroundColor Yellow
+    Remove-Item -Recurse -Force ".opencode"
 }
 
 # 5. Copiar framework
@@ -81,6 +123,7 @@ $ConfigContent = $ConfigContent.Replace('{{KINNYCODE_PROJECT_ID}}', $ProjectId)
 $ConfigContent = $ConfigContent.Replace('{{CPU_BASEURL}}', $CpuBaseUrl)
 $ConfigContent = $ConfigContent.Replace('{{GPU_BASEURL}}', $GpuBaseUrl)
 $ConfigContent = $ConfigContent.Replace('{{API_KEY}}', $ApiKey)
+$ConfigContent = $ConfigContent.Replace('{{MEMORY_ENABLED}}', $MemoryEnabled)
 
 $ConfigContent | Set-Content ".opencode\opencode.jsonc" -Encoding UTF8
 
@@ -112,7 +155,7 @@ $StatusContent = @"
 
 ### Generated Artifacts
 - [ ] 01_Plan_Scrum.md
-- [ ] 02_Arquitectura_SDD.md
+- [ ] 02_Architecture_SDD.md
 - [ ] 03_Plan_TDD.md
 - [ ] 04_Test_Report.md
 - [ ] 05_QA_Report.md

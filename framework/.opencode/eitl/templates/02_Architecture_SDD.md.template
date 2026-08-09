@@ -1,4 +1,4 @@
-# 02_Arquitectura_SDD.md
+# 02_Architecture_SDD.md
 ## Informacion General
 - **Proyecto**: {{PROJECT_NAME}}
 - **Fecha**: {{DATE}}
@@ -16,5 +16,5 @@
 ## 9. Riesgos Tecnicos
 
 ---
-**Ruta de generacion**: `../eitl-artifacts/02_Arquitectura_SDD.md`
+**Ruta de generacion**: `../eitl-artifacts/02_Architecture_SDD.md`
 **NO escribir en**: `.opencode/eitl/artifacts/`

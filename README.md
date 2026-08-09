@@ -1,8 +1,8 @@
 # EitL Framework v1.0b
 
 > **Framework**: Engineering in the Loop (EitL) for OpenCode-AI
-> **Version**: 3.1
-> **Date**: 2026-08-07
+> **Version**: 1.0b
+> **Date**: 2026-08-08
 > **Pipeline**: 10 agents · 21 skills · 6 gates · Full QA
 
 ---
@@ -10,15 +10,16 @@
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [What's New in v3.1](#whats-new-in-v31)
+2. [What's New in 1.0b](#whats-new-in-10b)
 3. [Installation](#installation)
 4. [Project Initialization](#project-initialization)
 5. [Generated Structure](#generated-structure)
 6. [Pipeline Usage](#pipeline-usage)
-7. [Control Commands](#control-commands)
-8. [Memory Systems](#memory-systems)
-9. [Troubleshooting](#troubleshooting)
-10. [Glossary](#glossary)
+7. [E2E Smoke Test](#e2e-smoke-test)
+8. [Control Commands](#control-commands)
+9. [Memory Systems](#memory-systems)
+10. [Troubleshooting](#troubleshooting)
+11. [Glossary](#glossary)
 
 ---
 
@@ -39,13 +40,14 @@ EitL (Engineering in the Loop) is a multi-agent software engineering framework f
 | **backend-expert** | Implementation | Backend Code |
 | **spec-lead** | Architecture | Technical Specifications |
 
-## What's New in v3.1
+## What's New in 1.0b
 
-- **Generic Configuration**: No hardcoded IPs, paths, or API keys. All via environment variables.
+- **Generic Configuration**: Project configs are generated from templates using environment-variable placeholders (`CPU_BASEURL`, `API_KEY`, etc.).
 - **Memory Adapter**: Works with KinnyCode, Mem0, LanceDB-OpenCode, or standalone (no memory server).
-- **Plugin Tests**: 15 unit tests for the context-guard plugin (~85% coverage).
+- **Plugin Tests**: 44 unit tests + 1 stress test (45 total) for the context-guard plugin (100% statement / 100% branch / 100% line coverage with Vitest, run in shuffled order).
+- **E2E Smoke Test**: `e2e/smoke-e2e.sh` validates project initialization end-to-end (structure + M8 re-init anti-regression, optional live check).
 - **Standalone Mode**: Run EitL without any external memory system.
-- **English**: All prompts, skills, and documentation are now in English.
+- **English**: Agent prompts and skills are in English; note that artifact templates and some plugin messages remain in Spanish.
 
 ## Installation
 
@@ -62,12 +64,12 @@ EitL (Engineering in the Loop) is a multi-agent software engineering framework f
 
 ```powershell
 # Windows
-Expand-Archive -Path "eitl-framework-v3.1.zip" -DestinationPath "$env:USERPROFILE\Tools\eitl-framework"
+Expand-Archive -Path "eitl-framework-v1.0b.zip" -DestinationPath "$env:USERPROFILE\Tools\eitl-framework"
 ```
 
 ```bash
 # Linux / macOS
-unzip eitl-framework-v3.1.zip -d ~/tools/eitl-framework
+unzip eitl-framework-v1.0b.zip -d ~/tools/eitl-framework
 ```
 
 ### Step 2: Verify Structure
@@ -83,10 +85,13 @@ eitl-framework/
 │       └── eitl/               ← templates + initial state
 ├── project-config-template/
 │   ├── opencode.jsonc.template ← generic config with placeholders
+│   ├── tui.json.template       ← TUI config
 │   └── .env.template           ← environment variables
 ├── init-scripts/
 │   ├── init-eitl.ps1           ← Windows
 │   └── init-eitl.sh            ← Linux/Mac
+├── e2e/
+│   └── smoke-e2e.sh            ← E2E smoke test (T-13)
 ├── QUICKSTART.md               ← 5-minute standalone setup
 └── README.md                   ← This file
 ```
@@ -100,13 +105,11 @@ eitl-framework/
 cd C:\Users\$env:USERNAME\Documents\projects
 mkdir my-project; cd my-project
 
-$env:MEMORY_ENABLED="false"
-$env:CPU_BASEURL="http://localhost:11434/v1"
-$env:API_KEY="not-needed"
-
 & "$env:USERPROFILE\Tools\eitl-framework\init-scripts\init-eitl.ps1" `
     -ProjectName "my-project" `
-    -MemoryEnabled $false
+    -CpuBaseUrl "http://localhost:11434/v1" `
+    -GpuBaseUrl "http://localhost:11434/v1" `
+    -ApiKey "not-needed"
 ```
 
 ```bash
@@ -124,14 +127,12 @@ bash ~/tools/eitl-framework/init-scripts/init-eitl.sh "my-project"
 ### With Memory Server (e.g., KinnyCode)
 
 ```powershell
-$env:MEMORY_ENABLED="true"
-$env:MEMORY_PYTHON_PATH="C:\ProgramData\KinnyCode\memory\.venv\Scripts\python.exe"
-$env:MEMORY_WRAPPER_PATH="C:\ProgramData\KinnyCode\memory\mcp_wrapper.py"
-$env:MEMORY_SERVER_URL="http://127.0.0.1:8005"
-
 & "$env:USERPROFILE\Tools\eitl-framework\init-scripts\init-eitl.ps1" `
     -ProjectName "my-project" `
-    -MemoryEnabled $true
+    -KinnyCodePath "C:\ProgramData\KinnyCode\memory" `
+    -MemoryServerUrl "http://127.0.0.1:8005" `
+    -CpuBaseUrl "http://localhost:11434/v1" `
+    -ApiKey "not-needed"
 ```
 
 ## Generated Structure
@@ -208,9 +209,37 @@ Before each agent delegation, the scrum-master automatically invokes:
 
 If WARNING: considers compaction. If CRITICAL: compacts or aborts.
 
+## E2E Smoke Test
+
+`e2e/smoke-e2e.sh` validates that the framework initializes a project correctly from scratch (T-13). It checks:
+
+- **Structure**: 10 agents, 21 skills, `opencode.jsonc`, `tui.json`, context-guard plugin and `CURRENT_STATE.md`.
+- **M8 anti-regression**: re-initialization **replaces** (does not nest) an existing `.opencode/` and creates a `.opencode-backup-<fecha>`.
+- **Live smoke (optional)**: loads the plugin in a real OpenCode session (`GUARD_OK` response).
+
+The script runs against a temporary project (`mktemp`) that is cleaned up automatically on exit, so it leaves no residue in `/tmp`.
+
+### Running
+
+```bash
+# Structural only (CI-friendly, no LLM required)
+bash e2e/smoke-e2e.sh
+
+# + Live smoke with real OpenCode (requires the opencode CLI and a configured LLM)
+OPENCODE_SMOKE=1 bash e2e/smoke-e2e.sh
+```
+
+| Exit code | Meaning |
+|-----------|---------|
+| `0` | PASS — all checks succeeded |
+| `1` | FAIL — structural error (blocks the `e2e` CI job) |
+| `2` | SKIP — live smoke not available (not a structural failure) |
+
+> The live smoke runs `opencode run` with the `architect` agent and verifies the context-guard plugin answers `GUARD_OK`. If no LLM is configured, it prints a warning and skips — this does not fail the CI.
+
 ## Memory Systems
 
-EitL v3.1 supports multiple memory backends via the `memory-adapter` skill:
+EitL v1.0b supports multiple memory backends via the `memory-adapter` skill:
 
 | Backend | Type | Storage | Deployment | Notes |
 |---------|------|---------|------------|-------|
@@ -234,6 +263,7 @@ If no MCP memory server is detected, EitL operates in standalone mode:
 | Artifacts not appearing | Check parent directory: `ls ../eitl-artifacts/` |
 | No LLM endpoint responding | Test with `curl [CPU_BASEURL]/v1/models` |
 | Memory server not connecting | Verify `MEMORY_SERVER_URL` and that the server is running |
+| Standalone still tries to connect to the memory MCP | `MEMORY_ENABLED` was not set | The init scripts honor `MEMORY_ENABLED` (default `false` → `"enabled": false`); set `MEMORY_ENABLED=true` only if you have a memory server (see `doc/06`) |
 | Init script fails on Windows | Ensure PowerShell execution policy allows scripts: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned` |
 
 ## Glossary

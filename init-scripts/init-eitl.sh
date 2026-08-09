@@ -44,11 +44,15 @@ if [ ! -d "$FRAMEWORK_DIR" ]; then
     exit 1
 fi
 
-# 4. Backup si existe .opencode
+# 4. Backup y REEMPLAZO si existe .opencode (M8): el backup se conserva, pero el
+#    .opencode existente se elimina antes de copiar el framework para evitar la
+#    estructura anidada .opencode/.opencode/ que hacía el pipeline no funcional.
 if [ -d ".opencode" ]; then
     BACKUP_NAME=".opencode-backup-$(date +%Y%m%d_%H%M%S)"
     echo -e "${YELLOW}[2/7] Backup de .opencode existente -> $BACKUP_NAME${NC}"
     cp -r .opencode "$BACKUP_NAME"
+    echo -e "${YELLOW}      Reemplazando .opencode existente (copia limpia del framework)...${NC}"
+    rm -rf .opencode
 fi
 
 # 5. Copiar framework
@@ -63,12 +67,32 @@ fi
 
 echo -e "${CYAN}[4/7] Generando opencode.jsonc...${NC}"
 
-# Defaults
+# Configuracion de endpoints (H1/T-10: sin secretos hardcodeados).
+# Se leen de variables de entorno; los defaults son NO sensibles y genericos
+# (localhost + placeholder) para que el bundle pueda compartirse sin riesgo.
 KINYCODE_PATH="${KINYCODE_PATH:-/opt/kinnycode/memory}"
-CPU_BASEURL="${CPU_BASEURL:-http://192.168.2.111:8002/v1}"
-GPU_BASEURL="${GPU_BASEURL:-http://192.168.2.111:8001/v1}"
-API_KEY="${API_KEY:-kinny-hellhouse-2026}"
+CPU_BASEURL="${CPU_BASEURL:-http://localhost:11434/v1}"
+GPU_BASEURL="${GPU_BASEURL:-http://localhost:11434/v1}"
 MEMORY_URL="${MEMORY_URL:-http://127.0.0.1:8005}"
+# Memoria (M5/T-17): los scripts ahora HONRAN MEMORY_ENABLED. Default "false"
+# (standalone, sin servidor de memoria) coherente con .env.template/README.
+# MEMORY_ENABLED=true genera el MCP de KinnyCode con "enabled": true.
+MEMORY_ENABLED="${MEMORY_ENABLED:-false}"
+# Normalizar a minusculas (acepta TRUE/True/1/yes, coherente con el fix de PS1)
+MEMORY_ENABLED=$(echo "$MEMORY_ENABLED" | tr '[:upper:]' '[:lower:]')
+if [ "$MEMORY_ENABLED" != "true" ] && [ "$MEMORY_ENABLED" != "false" ]; then
+    echo -e "${YELLOW}AVISO: MEMORY_ENABLED='$MEMORY_ENABLED' no reconocido; se usara 'false'.${NC}"
+    MEMORY_ENABLED="false"
+fi
+
+# AVISO solo si API_KEY no se definio (ni siquiera como placeholder): comprobar
+# ANTES de aplicar el default evita el falso positivo cuando el usuario exporta
+# API_KEY=not-needed a proposito (guia oficial para LLM local).
+if [ -z "${API_KEY:-}" ]; then
+    echo -e "${YELLOW}AVISO: API_KEY no definida; se usara el placeholder 'not-needed'.${NC}"
+    echo -e "${YELLOW}  Exporta API_KEY (y opcionalmente CPU_BASEURL/GPU_BASEURL) antes de ejecutar.${NC}"
+fi
+API_KEY="${API_KEY:-not-needed}"
 
 # Python path (intentar detectar venv)
 if [ -f "$KINYCODE_PATH/.venv/bin/python" ]; then
@@ -82,7 +106,7 @@ fi
 WRAPPER_PATH="$KINYCODE_PATH/mcp_wrapper.py"
 
 # Reemplazar placeholders
-sed -e "s|{{KINYCODE_PYTHON_PATH}}|$PYTHON_PATH|g"     -e "s|{{KINYCODE_WRAPPER_PATH}}|$WRAPPER_PATH|g"     -e "s|{{MEMORY_SERVER_URL}}|$MEMORY_URL|g"     -e "s|{{KINNYCODE_PROJECT_ID}}|$PROJECT_ID|g"     -e "s|{{CPU_BASEURL}}|$CPU_BASEURL|g"     -e "s|{{GPU_BASEURL}}|$GPU_BASEURL|g"     -e "s|{{API_KEY}}|$API_KEY|g"     "$TEMPLATE_DIR/opencode.jsonc.template" > .opencode/opencode.jsonc
+sed -e "s|{{KINYCODE_PYTHON_PATH}}|$PYTHON_PATH|g"     -e "s|{{KINYCODE_WRAPPER_PATH}}|$WRAPPER_PATH|g"     -e "s|{{MEMORY_SERVER_URL}}|$MEMORY_URL|g"     -e "s|{{KINNYCODE_PROJECT_ID}}|$PROJECT_ID|g"     -e "s|{{CPU_BASEURL}}|$CPU_BASEURL|g"     -e "s|{{GPU_BASEURL}}|$GPU_BASEURL|g"     -e "s|{{API_KEY}}|$API_KEY|g"     -e "s|{{MEMORY_ENABLED}}|$MEMORY_ENABLED|g"     "$TEMPLATE_DIR/opencode.jsonc.template" > .opencode/opencode.jsonc
 
 # TUI config
 cp "$TEMPLATE_DIR/tui.json.template" .opencode/tui.json
@@ -109,7 +133,7 @@ cat > "$ESTADO_PATH" <<EOF
 
 ### Generated Artifacts
 - [ ] 01_Plan_Scrum.md
-- [ ] 02_Arquitectura_SDD.md
+- [ ] 02_Architecture_SDD.md
 - [ ] 03_Plan_TDD.md
 - [ ] 04_Test_Report.md
 - [ ] 05_QA_Report.md
