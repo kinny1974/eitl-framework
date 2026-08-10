@@ -189,8 +189,8 @@ Distribución aproximada del tiempo por `check` (inferida del código y del benc
 
 ## 8. Performance Score
 
-| Categoría | Nota (base) | Post-poda | Post-B2 | **Actual (B1+B2+B3)** |
-|-----------|-------------|-----------|---------|-----------------------|
+| Categoría | Nota (base) | Post-poda | Post-B2 | **Actual (B1+B2+B3)** | **Tras L2 (persistencia)** |
+|-----------|-------------|-----------|---------|------------------------|----------------------------|
 | Latencia por operación | 95 | 97 | 92 | 92 (trade-off async) | 92 (set-threshold ahora persiste) |
 | Rendimiento sostenido (batch) | 85 | 98 | 96 | 96 | 96 |
 | Memoria | 90 | 97 | 97 | 97 | 97 |

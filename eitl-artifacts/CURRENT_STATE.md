@@ -1,10 +1,16 @@
 ## CURRENT PROJECT STATE
 
-**Proyecto**: EitL Framework — Línea base de QA v1.0b
+**Proyecto**: EitL Framework — Línea base de QA v1.1.0
 **Sprint**: 0 — Auditoría y línea base QA
-**Fecha**: 2026-08-08
+**Fecha**: 2026-08-09
 **Scrum Master**: ScrumMaster-Agent
-**Modo**: Standalone (sin servidor de memoria)
+**Modo**: KinnyCode Memory Plugin (Native TypeScript)
+
+### Memory Configuration
+- Plugin: opencode-kinnycode-memory (Native TypeScript)
+- Server: http://192.168.2.111:8007
+- Project ID: 6b6a8b869aea48ad
+- 18 native tools available
 
 ### Generated Artifacts
 - [ ] 01_Plan_Scrum.md — N/A (auditoría del framework; no requiere planificación de producto)
@@ -15,6 +21,7 @@
 - [x] 06_Performance_Report.md — NFRs cumplidos con margen ≥ 69% · Performance Score 95/100 · Gate 6 APPROVED
 - [x] Tests Ejecutados — Vitest 4.1.10 (45/45, shuffle) + bench (2 corridas post-L2) + stress batch
 - [x] Code Implementation — plugin `context-guard` migrado a la API actual de `@opencode-ai/plugin`
+- [x] KinnyCode Memory Plugin Integration — Native TypeScript plugin with 18 tools
 
 ### Sprint Backlog
 - [x] Auditar el framework completo (10 agentes · 21 skills · scripts · plugin · docs)
@@ -40,6 +47,9 @@
 - [x] Persistir umbrales de `set-threshold` (L2/T-22): `thresholdOverrides` en el estado; precedencia override > persistido > default
 - [x] Cobertura de ramas al 100% + `sequence.shuffle` (04 §7): 45 tests, 4 métricas al 100%
 - [x] E2E smoke test (T-13): `e2e/smoke-e2e.sh` + job CI `e2e`
+- [x] Integrar plugin nativo KinnyCodeMemory (v1.1.0): 18 herramientas nativas, sin dependencias Python
+- [x] Actualizar scripts de inicialización para plugin nativo (init-eitl.ps1/sh)
+- [x] Crear script de verificación del plugin (scripts/verify-kinnycode-plugin.sh)
 - [ ] Conectar SDK client para métricas de sesión en vivo del guard
 
 ### Gates
@@ -66,13 +76,16 @@
 | Retries per Gate | 0 | <= 3 | OK |
 | Quality Score | 96/100 | — | OK |
 | Performance Score | 95/100 | — | OK |
+| Memory Tools | 18 native tools | — | OK |
 
 ### Next Steps
 1. Conectar el SDK client para métricas de sesión en vivo del `context-guard`
 2. Smoke live E2E con OpenCode + LLM real (`OPENCODE_SMOKE=1 bash e2e/smoke-e2e.sh`)
 3. Primer push a GitHub y validación del workflow de CI (T-12 ya definida)
+4. Probar las 18 herramientas del plugin KinnyCodeMemory en un proyecto real
 
 ### Scrum Master Notes
-Línea base QA de 1.0b establecida. Gate 5 desbloqueado tras la migración del plugin a la
-API actual de `@opencode-ai/plugin`. Documentación completa en `doc/` (manual de uso) y
-reportes de auditoría en esta carpeta.
+Línea base QA de 1.1.0 establecida con integración completa del plugin nativo KinnyCodeMemory.
+Gate 5 desbloqueado tras la migración del plugin a la API actual de `@opencode-ai/plugin`.
+Plugin nativo de TypeScript con 18 herramientas para gestión de memoria, sin dependencias de Python.
+Documentación completa en `doc/` (manual de uso) y reportes de auditoría en esta carpeta.

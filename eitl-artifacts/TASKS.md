@@ -1,7 +1,7 @@
 # TASKS.md — Registro de tareas (modo standalone)
 
 > Estados: `[ ]` Pending · `[~]` In Progress · `[x]` Completed · `[!]` Blocked
-> Actualizado: 2026-08-08 · Sprint 0 (Auditoría y línea base QA v1.0b)
+> Actualizado: 2026-08-09 · Sprint 0 (Auditoría y línea base QA v1.1.0)
 
 ## Auditoría y QA
 
@@ -17,7 +17,7 @@
 | T-08 | Corregir claims del README (tests, inglés, `.env.template`) | [x] | `.env.template` creado; QUICKSTART corregido |
 | T-09 | Completar estructura `eitl-artifacts/` (CURRENT_STATE, TASKS, DECISIONS) | [x] | Este sprint |
 
-## Mejoras pendientes (1.0b)
+## Mejoras pendientes (1.1.0)
 
 | ID | Tarea | Estado | Notas |
 |----|-------|--------|-------|
@@ -36,8 +36,25 @@
 | T-22 | Persistir umbrales de `set-threshold` (L2) | [x] | ✅ `thresholdOverrides` en el estado; precedencia override > persistido > default; bench re-medido (360–370 ops/s) |
 | T-23 | Cobertura de ramas al 100% + `sequence.shuffle` (04 §7) | [x] | ✅ 45 tests · 100% stmts/ramas/funcs/lines · orden aleatorio (seed 0) |
 
+## Integración KinnyCode Memory Plugin (v1.1.0)
+
+| ID | Tarea | Estado | Notas |
+|----|-------|--------|-------|
+| T-24 | Integrar plugin nativo KinnyCodeMemory | [x] | ✅ Plugin TypeScript nativo con 18 herramientas, sin dependencias Python |
+| T-25 | Actualizar memory-adapter SKILL.md | [x] | ✅ Documentación completa del plugin nativo como opción recomendada |
+| T-26 | Actualizar opencode.jsonc.template | [x] | ✅ Configuración del plugin nativo con placeholders `{{KINNYCODE_SERVER_URL}}` y `{{KINNYCODE_PROJECT_ID}}` |
+| T-27 | Actualizar init-eitl.ps1 | [x] | ✅ Parámetros `-KinnyCodeServerUrl`, `-KinnyCodeProjectId`, `-UseNativePlugin` con detección automática |
+| T-28 | Actualizar init-eitl.sh | [x] | ✅ Variables de entorno `KINNYCODE_SERVER_URL`, `KINNYCODE_PROJECT_ID`, `USE_NATIVE_PLUGIN` |
+| T-29 | Actualizar .env.template | [x] | ✅ Nuevas variables de entorno y documentación de migración |
+| T-30 | Crear script de verificación del plugin | [x] | ✅ `scripts/verify-kinnycode-plugin.sh` para verificar instalación y configuración |
+| T-31 | Actualizar README.md a v1.1.0 | [x] | ✅ Documentación completa del plugin nativo, ejemplos de uso, guía de migración |
+| T-32 | Actualizar CURRENT_STATE.md | [x] | ✅ Estado actualizado con integración del plugin KinnyCodeMemory |
+| T-33 | Actualizar DECISIONS.md | [x] | ✅ D-019 y D-020 documentando la integración del plugin nativo |
+| T-34 | Ejecutar tests para verificar compatibilidad | [x] | ✅ 45/45 tests pasan, cobertura 100%, benchmark estable |
+
 ## Registro de actividad reciente
 
+- 2026-08-09 · Integración completa del plugin nativo KinnyCodeMemory (v1.1.0): plugin TypeScript con 18 herramientas nativas, sin dependencias Python. Scripts de inicialización actualizados, documentación completa, script de verificación creado. Tests intactos (45/45), cobertura 100%, benchmark estable.
 - 2026-08-08 · Sugerencias implementadas: M8/T-21 (init scripts reemplazan `.opencode` sin anidar), L2/T-22 (`set-threshold` persiste el umbral en el estado), cobertura de ramas al 100% (45 tests, 4 métricas), `sequence.shuffle` activo y E2E smoke test T-13 (`e2e/smoke-e2e.sh` + job CI `e2e`). Quality Score 94 → 96/100; reportes 04/05/06, doc/03, doc/06 (L3 y L10), doc/07, CURRENT_STATE y DECISIONS (D-018) actualizados.
 - 2026-08-08 · T-18 completada: plugins externos verificados en npm — 3 disponibles tal cual, 2 renombrados al paquete real (`@tarquinen/opencode-dcp`, `@slkiser/opencode-quota`), `opencode-review` eliminado (no existe como paquete npm). L1 resuelto; plantillas opencode.jsonc y tui.json corregidas; check anti-regresión añadido a la CI.
 - 2026-08-08 · T-16 completada: checklists de Gates 4–6 añadidos a `validator.md` (10 ítems c/u, tipos `tests|qa|performance` en el Input). M9 resuelto.

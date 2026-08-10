@@ -1,7 +1,7 @@
 # DECISIONS.md — Registro de decisiones (modo standalone)
 
 > Formato: fecha · contexto · decisión · consecuencia. Se añade al final (append).
-> Actualizado: 2026-08-08
+> Actualizado: 2026-08-09
 
 ---
 
@@ -262,3 +262,49 @@
   Score 95/100 (set-threshold con persistencia documentado). Reportes 04/05/06,
   `doc/03` (re-init sin workaround), `doc/06` (L3 → resuelta, L10 nueva), `doc/07`,
   CURRENT_STATE y TASKS actualizados.
+
+## D-019 · 2026-08-09 — Integración del plugin nativo KinnyCodeMemory (v1.1.0)
+
+- **Contexto**: el framework EitL v1.0b usaba un wrapper MCP de Python para conectarse al
+  servidor KinnyCode Memory. Este enfoque tenía limitaciones: dependencias de Python,
+  dos codebases, proceso separado, overhead de MCP, y mantenimiento complejo.
+- **Decisión**: migrar al plugin nativo de TypeScript `opencode-kinnycode-memory` que se
+  conecta directamente al servidor KinnyCode sin wrapper MCP. Cambios implementados:
+  1. **memory-adapter SKILL.md**: Actualizado para documentar el plugin nativo como
+     opción recomendada, con 18 herramientas nativas (indexing, search, conversations,
+     tasks, memory management).
+  2. **opencode.jsonc.template**: Reemplazado el bloque MCP por configuración del plugin
+     nativo con placeholders `{{KINNYCODE_SERVER_URL}}` y `{{KINNYCODE_PROJECT_ID}}`.
+  3. **init-eitl.ps1**: Agregados parámetros `-KinnyCodeServerUrl`, `-KinnyCodeProjectId`,
+     `-UseNativePlugin` con detección automática del modo de memoria.
+  4. **init-eitl.sh**: Agregadas variables de entorno `KINNYCODE_SERVER_URL`,
+     `KINNYCODE_PROJECT_ID`, `USE_NATIVE_PLUGIN` con configuración automática.
+  5. **.env.template**: Actualizado con nuevas variables de entorno y documentación de
+     migración del MCP wrapper al plugin nativo.
+  6. **README.md**: Actualizado a v1.1.0 con documentación completa del plugin nativo,
+     ejemplos de uso, y guía de migración.
+  7. **scripts/verify-kinnycode-plugin.sh**: Nuevo script para verificar la instalación
+     y configuración del plugin nativo.
+- **Consecuencia**: El framework EitL ahora usa el plugin nativo de KinnyCodeMemory como
+  opción recomendada para gestión de memoria. Ventajas logradas:
+  - **Sin dependencias de Python**: Solo Node.js requerido
+  - **Mejor rendimiento**: Integración directa sin overhead MCP
+  - **18 herramientas nativas**: Indexación, búsqueda, conversaciones, tareas, gestión
+  - **Mantenimiento simplificado**: Un solo codebase
+  - **Mantienen compatibilidad**: Soporte para MCP wrapper legacy y modo standalone
+  - **Tests intactos**: 45/45 tests pasan, cobertura 100%
+  - **Rendimiento mantenido**: Benchmark estable, NFRs cumplidos
+  - **Documentación completa**: Guía de uso y migración disponible
+
+## D-020 · 2026-08-09 — Versión del framework actualizada a 1.1.0
+
+- **Contexto**: la integración del plugin nativo KinnyCodeMemory representa un cambio
+  significativo en las capacidades del framework, justificando una actualización de versión.
+- **Decisión**: actualizar la versión del framework de 1.0b a 1.1.0 para reflejar:
+  1. Integración del plugin nativo KinnyCodeMemory
+  2. 18 herramientas nativas de memoria disponibles
+  3. Mejoras en la configuración y scripts de inicialización
+  4. Nuevas variables de entorno para el plugin nativo
+  5. Script de verificación del plugin
+- **Consecuencia**: El framework EitL v1.1.0 establece una nueva línea base con soporte
+  nativo para memoria, preparado para futuras mejoras y mantenimiento simplificado.
