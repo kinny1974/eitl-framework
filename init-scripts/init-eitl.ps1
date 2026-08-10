@@ -422,6 +422,10 @@ Write-Step "PROJECT" "Configurando proyecto: $($config.ProjectName)"
 $currentDir = Get-Location
 $currentDirName = Split-Path $currentDir.Path -Leaf
 
+Write-Host "  DEBUG: Current dir: $($currentDir.Path)" -ForegroundColor Magenta
+Write-Host "  DEBUG: Current dir name: $currentDirName" -ForegroundColor Magenta
+Write-Host "  DEBUG: Project name: $($config.ProjectName)" -ForegroundColor Magenta
+
 if ($currentDirName -eq $config.ProjectName) {
     $projectDir = $currentDir.Path
     Write-Ok "Usando directorio actual: $projectDir"
