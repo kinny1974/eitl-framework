@@ -173,3 +173,4 @@ architect 55/70 · tdd-engineer 60/78 · validator 65/80.
 ---
 
 **← [04 · Memoria](04-memoria.md)** · **Siguiente → [06 · Solución de problemas](06-solucion-de-problemas.md)**
+

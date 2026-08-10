@@ -1,7 +1,7 @@
-# EitL Framework v1.0b
+# EitL Framework v1.0.1b
 
 > **Framework**: Engineering in the Loop (EitL) for OpenCode-AI
-> **Version**: 1.0b
+> **Version**: 1.0.1b
 > **Date**: 2026-08-09
 > **Pipeline**: 10 agents · 21 skills · 6 gates · Full QA
 
@@ -16,6 +16,7 @@
 5. [Generated Structure](#generated-structure)
 6. [Pipeline Usage](#pipeline-usage)
 7. [Troubleshooting](#troubleshooting)
+8. [Documentation](#documentation)
 
 ---
 
@@ -61,7 +62,16 @@ EitL configures plugins in `opencode.jsonc`. When you start OpenCode, it reads t
 | Plugin | Purpose | When Installed |
 |--------|---------|----------------|
 | `context-guard` | Context monitoring | Always (included in EitL) |
-| `opencode-kinnycode-memory` | Semantic memory | Only if you choose memory mode |
+
+#### Memory Plugins (Optional)
+
+If you choose memory mode in the init script, one of these plugins is configured:
+
+| Plugin | Server | Storage |
+|--------|--------|---------|
+| `opencode-kinnycode-memory` | KinnyCodeMemory | LanceDB (server) |
+| `mem0` | Mem0 | Cloud |
+| `lancedb-opencode-pro` | LanceDB-OpenCode | LanceDB (local) |
 
 ---
 
@@ -242,6 +252,23 @@ opencode
 | `/perf-test` | QA | `06_Performance_Report.md` |
 | `/status` | Control | Current state |
 | `/blocker [msg]` | Control | Register blocker |
+| `/yolo on` | Control | Autonomous mode (no pauses) |
+| `/yolo off` | Control | Disable autonomous mode |
+
+### Quick Mode (for experiments)
+
+```bash
+# 1. Enable YOLO
+/yolo on
+
+# 2. Run only what you need
+/start-SDD [requirement]
+/start-IMPL [id]
+/run-tests
+
+# 3. Skip gates you don't need
+# Simply don't run /qa-check or /perf-test
+```
 
 ---
 
@@ -254,6 +281,22 @@ opencode
 | Artifacts not appearing | Check `../eitl-artifacts/` (parent directory) |
 | No LLM responding | Configure your model provider in OpenCode settings |
 | Plugin not found | Restart OpenCode to auto-install plugins |
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [00 - Glossary](doc/00-glossario.md) | Terms and definitions |
+| [01 - Installation](doc/01-instalacion.md) | Prerequisites and setup |
+| [02 - New Project](doc/02-inicializar-proyecto-nuevo.md) | Initialize from scratch |
+| [03 - Existing Project](doc/03-inicializar-proyecto-existente.md) | Add EitL to existing code |
+| [04 - Memory](doc/04-memoria.md) | Memory plugins and configuration |
+| [05 - Pipeline](doc/05-pipeline-y-comandos.md) | Commands and workflow |
+| [06 - Troubleshooting](doc/06-solucion-de-problemas.md) | Common issues and solutions |
+| [07 - QA](doc/07-qa.md) | Quality assurance |
+| [08 - Teams](doc/08-equipos.md) | Memory configuration for teams |
 
 ---
 

@@ -171,3 +171,6 @@ Crear `~/.config/opencode/lancedb-opencode-pro.json`:
 | KinnyCodeMemory (existente) | `.\init-eitl.ps1 -ProjectName "x" -MemoryMode local -MemoryPlugin kinnycode -MemoryUrl "http://localhost:8007" -ProjectId "abc123"` |
 | Mem0 | `.\init-eitl.ps1 -ProjectName "x" -MemoryMode local -MemoryPlugin mem0 -MemoryUrl "http://localhost:8003"` |
 | LanceDB | `.\init-eitl.ps1 -ProjectName "x" -MemoryMode local -MemoryPlugin lancedb` |
+
+
+
