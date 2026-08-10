@@ -391,12 +391,21 @@ if ! check_prerequisites; then
     exit 1
 fi
 
-# Crear proyecto
+# Detectar si ya estamos dentro de la carpeta del proyecto
 echo ""
-echo -e "${CYAN}[PROJECT] Creando proyecto: $CONFIG_PROJECT_NAME${NC}"
+echo -e "${CYAN}[PROJECT] Configurando proyecto: $CONFIG_PROJECT_NAME${NC}"
 
-PROJECT_DIR="$(pwd)/$CONFIG_PROJECT_NAME"
-mkdir -p "$PROJECT_DIR"
+CURRENT_DIR="$(pwd)"
+CURRENT_DIR_NAME="$(basename "$CURRENT_DIR")"
+
+if [ "$CURRENT_DIR_NAME" = "$CONFIG_PROJECT_NAME" ]; then
+    PROJECT_DIR="$CURRENT_DIR"
+    echo -e "  ${GREEN}[OK]${NC} Usando directorio actual: $PROJECT_DIR"
+else
+    PROJECT_DIR="$(pwd)/$CONFIG_PROJECT_NAME"
+    mkdir -p "$PROJECT_DIR"
+    echo -e "  ${GREEN}[OK]${NC} Carpeta creada: $PROJECT_DIR"
+fi
 
 # Copiar framework
 copy_framework "$PROJECT_DIR"
@@ -458,3 +467,4 @@ if [ "$CONFIG_MEMORY_MODE" != "standalone" ]; then
 fi
 
 echo ""
+

@@ -415,13 +415,22 @@ if (-not (Test-Prerequisites)) {
     exit 1
 }
 
-# Crear directorio del proyecto
+# Detectar si ya estamos dentro de la carpeta del proyecto
 Write-Host ""
-Write-Step "PROJECT" "Creando proyecto: $($config.ProjectName)"
+Write-Step "PROJECT" "Configurando proyecto: $($config.ProjectName)"
 
-$projectDir = Join-Path (Get-Location) $config.ProjectName
-if (-not (Test-Path $projectDir)) {
-    New-Item -ItemType Directory -Path $projectDir | Out-Null
+$currentDir = Get-Location
+$currentDirName = Split-Path $currentDir.Path -Leaf
+
+if ($currentDirName -eq $config.ProjectName) {
+    $projectDir = $currentDir.Path
+    Write-Ok "Usando directorio actual: $projectDir"
+} else {
+    $projectDir = Join-Path $currentDir $config.ProjectName
+    if (-not (Test-Path $projectDir)) {
+        New-Item -ItemType Directory -Path $projectDir | Out-Null
+        Write-Ok "Carpeta creada: $projectDir"
+    }
 }
 
 # Copiar framework
@@ -489,4 +498,5 @@ Write-Host ""
 if (-not $installOk) {
     Write-Warn "Algunos archivos no se encontraron. Verifica el framework."
 }
+
 
