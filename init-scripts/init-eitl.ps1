@@ -28,7 +28,7 @@ param(
 function Write-Header {
     Write-Host ""
     Write-Host "==============================================" -ForegroundColor Cyan
-    Write-Host "  EITL Framework - Inicializador v1.0b" -ForegroundColor Cyan
+    Write-Host "  EITL Framework - Inicializador v1.0.1b" -ForegroundColor Cyan
     Write-Host "  https://github.com/kinny1974/eitl-framework" -ForegroundColor Gray
     Write-Host "==============================================" -ForegroundColor Cyan
     Write-Host ""
@@ -422,9 +422,6 @@ Write-Step "PROJECT" "Configurando proyecto: $($config.ProjectName)"
 $currentDir = Get-Location
 $currentDirName = Split-Path $currentDir.Path -Leaf
 
-Write-Host "  DEBUG: Current dir: $($currentDir.Path)" -ForegroundColor Magenta
-Write-Host "  DEBUG: Current dir name: $currentDirName" -ForegroundColor Magenta
-Write-Host "  DEBUG: Project name: $($config.ProjectName)" -ForegroundColor Magenta
 
 if ($currentDirName -eq $config.ProjectName) {
     $projectDir = $currentDir.Path

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# EITL Framework - Inicializador v1.0b
+# EITL Framework - Inicializador v1.0.1b
 # Sin valores hardcodeados. Memoria OPCIONAL.
 # https://github.com/kinny1974/eitl-framework
 # ============================================================
@@ -21,7 +21,7 @@ NC='\033[0m'
 write_header() {
     echo ""
     echo -e "${CYAN}=============================================${NC}"
-    echo -e "${CYAN}  EITL Framework - Inicializador v1.0b${NC}"
+    echo -e "${CYAN}  EITL Framework - Inicializador v1.0.1b${NC}"
     echo -e "${GRAY}  https://github.com/kinny1974/eitl-framework${NC}"
     echo -e "${CYAN}=============================================${NC}"
     echo ""
