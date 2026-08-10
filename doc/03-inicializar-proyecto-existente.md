@@ -1,214 +1,103 @@
-# 03 · Inicializar un proyecto existente
+# 03 - Inicializar un proyecto existente
 
-> **Objetivo**: adjuntar el framework EitL a un proyecto que ya tiene código, repositorio
-> y posiblemente una configuración propia de `.opencode`, y migrar memoria/estado cuando
-> haga falta — con o sin sistema de memoria.
+> **Objetivo**: adjuntar el framework EitL a un proyecto que ya tiene codigo.
 
 ---
 
-## 3.1 ¿Cuándo tiene sentido?
+## 3.1 Cuando tiene sentido
 
-- Quieres aplicar el pipeline de diseño→TDD→QA a un código que ya existe.
-- Quieres empezar a generar artefactos (`01_Plan_Scrum.md`, SDD, TDD, reportes QA) para un
-  proyecto en curso.
-- Tienes memoria de otro proyecto o de otra instancia y quieres traerla.
+- Quieres aplicar el pipeline de diseno -> TDD -> QA a codigo existente
+- Quieres generar artefactos (`01_Plan_Scrum.md`, SDD, TDD, reportes QA)
+- Quieres traer memoria de otro proyecto
 
-> ⚠️ El framework **no borra tu código fuente**: solo añade `.opencode/` (framework +
-> configuración) y crea `../eitl-artifacts/` con el estado del pipeline. Tu código queda
-> intacto.
+> El framework **no borra tu codigo fuente**: solo anade `.opencode/` y crea `../eitl-artifacts/`.
 
 ---
 
-## 3.2 Precauciones previas (obligatorias)
+## 3.2 Precauciones previas
 
-1. **Commit de seguridad**: haz un `git commit` (o stash) para tener el repo limpio y
-   poder revertir cualquier cosa.
+1. **Commit de seguridad**:
+   ```bash
+   git add -A && git commit -m "chore: snapshot antes de inicializar EitL"
+   ```
 
-```bash
-git add -A && git commit -m "chore: snapshot antes de inicializar EitL"
-```
-
-2. **Comprueba si ya existe `.opencode`**:
-
-```bash
-ls -la .opencode 2>/dev/null && echo "EXISTE .opencode" || echo "No existe .opencode"
-```
-
-3. **Conoce la ubicación de los artefactos**: el inicializador crea `../eitl-artifacts/`
-   en el **directorio padre** del proyecto (donde ejecutas el script), no dentro del repo.
-   Si tu proyecto vive en `~/proyectos/mi-app`, los artefactos quedarán en
-   `~/proyectos/eitl-artifacts/`. Planifícalo o mueve la carpeta después.
+2. **Verificar si ya existe `.opencode`**:
+   ```bash
+   ls -la .opencode 2>/dev/null && echo "EXISTE" || echo "No existe"
+   ```
 
 ---
 
-## 3.3 Procedimiento paso a paso
+## 3.3 Procedimiento
 
-> ✅ **M8 resuelto (T-21)**: desde 1.0b los scripts de inicialización **reemplazan** (no
-> anidan) un `.opencode` existente: copian el actual a `.opencode-backup-<fecha>` y
-> eliminan el original antes de instalar el framework limpio. Ya no se produce la
-> estructura anidada `.opencode/.opencode/`.
-
-### Paso 1 — (Opcional) Limpiar una configuración previa de `.opencode`
-
-No es obligatorio: el propio script hace backup + reemplazo automático. Solo si quieres
-partir de cero sin conservar backups:
+### Paso 1 - Navegar al directorio del proyecto
 
 ```bash
-# Linux / macOS
-rm -rf .opencode
-
-# Windows (PowerShell)
-Remove-Item -Recurse -Force .opencode
+cd mi-proyecto
 ```
 
-> Si tu `.opencode` previo tenía archivos propios (agentes/skills customizados), el backup
-> automático `.opencode-backup-<fecha>` los conserva — cópialos de vuelta a `.opencode/`
-> tras la inicialización si quieres conservarlos.
+### Paso 2 - Ejecutar el inicializador
 
-### Paso 2 — Definir el entorno (LLM y, opcionalmente, memoria)
-
-Igual que en un proyecto nuevo (ver [02 · Inicializar un proyecto nuevo](02-inicializar-proyecto-nuevo.md)):
-
-```bash
-# Linux / macOS — sin memoria
-export CPU_BASEURL="http://localhost:11434/v1"
-export GPU_BASEURL="http://localhost:11434/v1"
-export API_KEY="not-needed"
-
-# Con memoria (KinnyCode), añade también:
-export KINYCODE_PATH="/opt/kinnycode/memory"
-export MEMORY_URL="http://127.0.0.1:8005"
-```
+**Modo interactivo:**
 
 ```powershell
-# Windows — sin memoria
-& "$env:USERPROFILE\Tools\eitl-framework\init-scripts\init-eitl.ps1" `
-    -ProjectName "mi-app" `
-    -CpuBaseUrl "http://localhost:11434/v1" `
-    -GpuBaseUrl "http://localhost:11434/v1" `
-    -ApiKey "not-needed"
-```
-
-### Paso 3 — Ejecutar el inicializador (desde la raíz del proyecto)
-
-> Si existe un `.opencode` previo, el script lo respalda en `.opencode-backup-<fecha>` y
-> lo reemplaza por una copia limpia del framework (M8 resuelto).
-
-```bash
-# Linux / macOS
-bash ~/tools/eitl-framework/init-scripts/init-eitl.sh "mi-app"
-
 # Windows
-& "$env:USERPROFILE\Tools\eitl-framework\init-scripts\init-eitl.ps1" -ProjectName "mi-app"
+& "F:\eitl-framework\init-scripts\init-eitl.ps1"
 ```
-
-### Paso 4 — Verificar la estructura
 
 ```bash
-ls .opencode/                     # debe contener agents/, skills/, plugin/, ...
-ls ../eitl-artifacts/             # debe contener CURRENT_STATE.md
+# Linux
+bash ~/eitl-framework/init-scripts/init-eitl.sh
 ```
 
-> Si apareciera `.opencode/.opencode/` (por una versión antigua del bundle), repáralo así:
+El script preguntara:
+1. Nombre del proyecto
+2. Modo de memoria (standalone / con servidor)
+3. Tipo de plugin (KinnyCodeMemory, Mem0, LanceDB)
+4. URL del servidor (si aplica)
+5. Project ID (solo KinnyCodeMemory)
+
+El script detectara si ya existe `.opencode` y hara backup automaticamente.
+
+**Modo parametrizado:**
+
+```powershell
+# Windows - Standalone
+& "F:\eitl-framework\init-scripts\init-eitl.ps1" -ProjectName "mi-proyecto" -MemoryMode standalone
+
+# Windows - KinnyCodeMemory con ID existente
+& "F:\eitl-framework\init-scripts\init-eitl.ps1" -ProjectName "mi-proyecto" -MemoryMode local -MemoryPlugin kinnycode -MemoryUrl "http://localhost:8007" -ProjectId "abc123def456"
+```
 
 ```bash
-mv .opencode/.opencode/* .opencode/ && rmdir .opencode/.opencode
+# Linux - Standalone
+bash ~/eitl-framework/init-scripts/init-eitl.sh "mi-proyecto" standalone
+
+# Linux - KinnyCodeMemory con ID existente
+bash ~/eitl-framework/init-scripts/init-eitl.sh "mi-proyecto" local kinnycode "http://localhost:8007" "abc123def456"
 ```
 
-### Paso 5 — Revisar la configuración generada
+### Paso 3 - Verificar
 
 ```bash
-# Revisa que las URLs/API key sean las correctas (los scripts traen valores por defecto
-# que debes sobrescribir siempre — ver 06).
-cat .opencode/opencode.jsonc
+ls .opencode/              # Framework copiado
+ls ../eitl-artifacts/      # Artefactos creados
 ```
-
-- [ ] `baseURL` de `llama-cpp-cpu` y `llama-cpp-gpu` correctos
-- [ ] `apiKey` correcta
-- [ ] (Sin memoria) bloque `mcp.kinnycode-memory.enabled = false` o servidor no disponible
-- [ ] `"context-guard"` presente en el array `plugin`
-
-### Paso 6 — Primer arranque
-
-```bash
-opencode
-```
-
-En la TUI, el **scrum-master** retoma el estado desde `../eitl-artifacts/CURRENT_STATE.md`
-y queda listo para `/start-SDD [requerimiento]`.
 
 ---
 
-## 3.4 Con memoria vs sin memoria en un proyecto existente
+## 3.4 Migrar memoria
 
-- **Sin memoria (standalone)**: el estado se persiste en archivos Markdown dentro de
-  `../eitl-artifacts/` (`CURRENT_STATE.md`, `TASKS.md`, `DECISIONS.md`). Si ya venías de
-  otro proyecto standalone, puedes **copiar esos archivos** a la nueva carpeta de
-  artefactos para conservar el historial de decisiones.
-- **Con memoria**: configuras un backend (KinnyCode, Mem0 o LanceDB) igual que en un
-  proyecto nuevo (ver [04 · Memoria](04-memoria.md)) y, si ya tenías memoria, la importas
-  con `memory-importer` (sección siguiente).
+Si el proyecto tenia memoria de otro backend:
 
----
+1. Exporta la memoria actual (si esta disponible)
+2. Inicializa con el nuevo modo
+3. Importa la memoria
 
-## 3.5 Migrar estado y memoria entre proyectos
-
-El framework incluye dos mecanismos complementarios:
-
-### a) `memory-exporter` / `memory-importer` (memoria del agente)
-
-Ideal para mover el conocimiento acumulado (conversaciones, decisiones, código indexado,
-documentos) de un proyecto a otro o de una instancia a otra.
-
-1. **Exportar** desde el proyecto origen (vía la skill `memory-exporter`):
-   genera `memory-export_YYYY-MM-DD_HHMMSS/` con las capas C1–C4, `tasks/` y
-   `project_context.md`, más un `_manifest.json` con checksums SHA-256.
-
-2. **Importar** en el proyecto destino (vía la skill `memory-importer`), eligiendo modo:
-
-   | Modo | Comportamiento |
-   |------|----------------|
-   | `restore` | Reemplaza por completo el estado de memoria actual |
-   | `merge` | Fusiona de forma aditiva (solo actualizaciones parciales) |
-
-   La importación **pide confirmación** antes de modificar nada.
-
-### b) `portability-export` / `portability-import` (proyecto completo)
-
-Formato portátil SIGMA-Team: empaqueta artefactos, código y decisiones con verificación
-SHA-256 y rutas relativas, de modo que **cualquier instancia de EitL** pueda reconstruir
-el proyecto. Útil para mover un proyecto entero entre máquinas/equipos.
-
-```
-export/
-├── data/
-│   ├── artifacts/
-│   ├── code/
-│   └── decisions/
-└── metadata/
-    ├── manifest.json
-    ├── checksums.sha256
-    └── agent-configs/
-```
-
-La importación **verifica todos los checksums antes** de reconstruir la estructura.
-
-> 💡 Diferencia práctica: usa `memory-exporter` si solo te interesa el **conocimiento**;
-> usa `portability-export` si quieres trasladar el **proyecto completo** (código +
-> artefactos + decisiones + configuración de agentes).
+Usa las skills `memory-exporter` e `memory-importer`.
 
 ---
 
-## 3.6 Checklist final
+## 3.5 Siguiente paso
 
-- [ ] Commit de seguridad realizado
-- [ ] Estructura sin `.opencode/.opencode/` (el script reemplaza automáticamente, M8)
-- [ ] `opencode.jsonc` generado con URLs/API key correctas
-- [ ] `../eitl-artifacts/CURRENT_STATE.md` existe
-- [ ] Modo memoria decidido (backend configurado o `enabled: false`)
-- [ ] (Si aplica) Memoria importada con `memory-importer` (modo `restore`/`merge`)
-- [ ] `opencode` arranca y `/status` muestra el estado del proyecto
-
----
-
-**← [02 · Inicializar un proyecto nuevo](02-inicializar-proyecto-nuevo.md)** · **Siguiente → [04 · Memoria](04-memoria.md)**
+Ve a [05 - Pipeline y comandos](05-pipeline-y-comandos.md).

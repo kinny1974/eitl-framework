@@ -1,157 +1,324 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Inicializa un nuevo proyecto EitL (Engineering in the Loop) con OpenCode.
+    Inicializa un proyecto EitL (Engineering in the Loop) con OpenCode.
 .DESCRIPTION
-    Genera configuracion de proyecto unica, copia el framework EitL,
-    crea directorio de artefactos y prepara todo para iniciar OpenCode.
+    Configura un proyecto EitL de forma interactiva o parametrizada.
+    Sin valores hardcodeados. Memoria OPCIONAL.
+.NOTES
+    Version: 1.0b
+    Repositorio: https://github.com/kinny1974/eitl-framework
 #>
 
 param(
     [string]$ProjectName = "",
-    [string]$KinnyCodePath = "",
-    [string]$CpuBaseUrl = "",
-    [string]$GpuBaseUrl = "",
-    [string]$ApiKey = "",
-    [string]$MemoryServerUrl = "",
-    [string]$MemoryEnabled = ""
+    [ValidateSet("standalone", "local", "remote")]
+    [string]$MemoryMode = "",
+    [ValidateSet("kinnycode", "mem0", "lancedb")]
+    [string]$MemoryPlugin = "",
+    [string]$MemoryUrl = "",
+    [string]$ProjectId = "",
+    [switch]$NonInteractive
 )
 
-# Seguridad (H1/T-10): sin secretos hardcodeados. Los valores se resuelven asi:
-#   1) parametro explicito (-CpuBaseUrl ...) -> gana
-#   2) variable de entorno (CPU_BASEURL ...) -> fallback
-#   3) default NO sensible (localhost / placeholder) -> ultimo recurso
-# PSBoundParameters solo contiene los parametros que el usuario paso realmente.
-if (-not $PSBoundParameters.ContainsKey('KinnyCodePath')) { $KinnyCodePath = $env:KINYCODE_PATH }
-if (-not $KinnyCodePath) { $KinnyCodePath = "C:\ProgramData\KinnyCode\memory" }
-if (-not $PSBoundParameters.ContainsKey('CpuBaseUrl')) { $CpuBaseUrl = $env:CPU_BASEURL }
-if (-not $CpuBaseUrl) { $CpuBaseUrl = "http://localhost:11434/v1" }
-if (-not $PSBoundParameters.ContainsKey('GpuBaseUrl')) { $GpuBaseUrl = $env:GPU_BASEURL }
-if (-not $GpuBaseUrl) { $GpuBaseUrl = "http://localhost:11434/v1" }
-# Flag para avisar SOLO cuando el placeholder lo aplica el script (no cuando el
-# usuario paso -ApiKey 'not-needed' o exporto API_KEY=not-needed a proposito).
-$warnApiKey = $false
-if (-not $PSBoundParameters.ContainsKey('ApiKey')) { $ApiKey = $env:API_KEY }
-if (-not $ApiKey) { $ApiKey = "not-needed"; $warnApiKey = $true }
-if (-not $PSBoundParameters.ContainsKey('MemoryServerUrl')) { $MemoryServerUrl = $env:MEMORY_URL }
-if (-not $MemoryServerUrl) { $MemoryServerUrl = "http://127.0.0.1:8005" }
-# Memoria (M5/T-17): el script ahora HONRA MEMORY_ENABLED. Default "false"
-# (standalone, sin servidor de memoria) coherente con .env.template/README.
-# -MemoryEnabled $true o env MEMORY_ENABLED=true generan el MCP con enabled:true.
-if (-not $PSBoundParameters.ContainsKey('MemoryEnabled')) { $MemoryEnabled = $env:MEMORY_ENABLED }
-if (-not $MemoryEnabled) { $MemoryEnabled = "false" }
-# Normalizar a minusculas: acepta -MemoryEnabled $true (se liga como 'True'),
-# 'TRUE'/'FALSE'/'True'/'False' (la comparacion -ne de PowerShell es case-insensitive
-# y podria dejar pasar valores raros al JSON si no normalizamos).
-$MemoryEnabled = "$MemoryEnabled".ToLowerInvariant()
-if ($MemoryEnabled -ne "true" -and $MemoryEnabled -ne "false") {
-    Write-Host "AVISO: MemoryEnabled='$MemoryEnabled' no reconocido; se usara 'false'." -ForegroundColor Yellow
-    $MemoryEnabled = "false"
+# ============================================================================
+# FUNCIONES AUXILIARES
+# ============================================================================
+
+function Write-Header {
+    Write-Host ""
+    Write-Host "==============================================" -ForegroundColor Cyan
+    Write-Host "  EITL Framework - Inicializador v1.0b" -ForegroundColor Cyan
+    Write-Host "  https://github.com/kinny1974/eitl-framework" -ForegroundColor Gray
+    Write-Host "==============================================" -ForegroundColor Cyan
+    Write-Host ""
 }
 
-if ($warnApiKey) {
-    Write-Host "AVISO: ApiKey no definida; se usara el placeholder 'not-needed'." -ForegroundColor Yellow
-    Write-Host "  Pasa -ApiKey o define la variable de entorno API_KEY antes de ejecutar." -ForegroundColor Yellow
+function Write-Step {
+    param([string]$Step, [string]$Message)
+    Write-Host "[$Step] $Message" -ForegroundColor Cyan
 }
 
-Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "  EitL Master Bundle - Inicializador" -ForegroundColor Cyan
-Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host ""
+function Write-Ok {
+    param([string]$Message)
+    Write-Host "  [OK] $Message" -ForegroundColor Green
+}
 
-# 1. Nombre del proyecto
-if (-not $ProjectName) {
-    $ProjectName = Read-Host "Nombre del proyecto (ej: mi-app-eitl)"
-    if (-not $ProjectName) {
-        Write-Host "ERROR: Nombre de proyecto requerido." -ForegroundColor Red
+function Write-Warn {
+    param([string]$Message)
+    Write-Host "  [!] $Message" -ForegroundColor Yellow
+}
+
+function Write-Err {
+    param([string]$Message)
+    Write-Host "  [X] $Message" -ForegroundColor Red
+}
+
+function Test-CommandExists {
+    param([string]$Command)
+    return [bool](Get-Command $Command -ErrorAction SilentlyContinue)
+}
+
+# ============================================================================
+# VALIDACION DE PREREQUISITOS
+# ============================================================================
+
+function Test-Prerequisites {
+    Write-Step "PRE" "Verificando prerrequisitos..."
+
+    if (Test-CommandExists "git") {
+        $v = (git --version) -replace 'git version ', ''
+        Write-Ok "Git $v"
+    } else {
+        Write-Err "Git no encontrado - instalar desde: https://git-scm.com/"
+        return $false
+    }
+
+    if (Test-CommandExists "opencode") {
+        Write-Ok "OpenCode detectado"
+    } else {
+        Write-Warn "OpenCode no encontrado en PATH"
+        Write-Host "    Instalar desde: https://opencode.ai" -ForegroundColor Gray
+    }
+
+    return $true
+}
+
+# ============================================================================
+# MENU INTERACTIVO
+# ============================================================================
+
+function Get-InteractiveConfig {
+    $config = @{}
+
+    # Nombre del proyecto
+    Write-Host "  Nombre del proyecto: " -NoNewline -ForegroundColor White
+    $config.ProjectName = Read-Host
+    if (-not $config.ProjectName) {
+        Write-Err "Nombre de proyecto requerido"
         exit 1
     }
+
+    # Configuracion de memoria
+    Write-Host ""
+    Write-Host "  Configuracion de memoria:" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "    [1] Standalone (Sin servidor de memoria)" -ForegroundColor Green
+    Write-Host "        Funciona sin ninguna dependencia externa" -ForegroundColor Gray
+    Write-Host "        Estado se guarda en eitl-artifacts/" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "    [2] Con servidor de memoria" -ForegroundColor Yellow
+    Write-Host "        KinnyCodeMemory, Mem0, u otro servidor" -ForegroundColor Gray
+    Write-Host "        Necesitas el servidor corriendo" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Seleccion [1/2]: " -NoNewline -ForegroundColor White
+    $choice = Read-Host
+
+    switch ($choice) {
+        "1" {
+            $config.MemoryMode = "standalone"
+        }
+        "2" {
+            # Tipo de servidor de memoria
+            Write-Host ""
+            Write-Host "  Tipo de servidor de memoria:" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "    [1] KinnyCodeMemory (Recomendado)" -ForegroundColor Green
+            Write-Host "    [2] Mem0" -ForegroundColor Yellow
+            Write-Host "    [3] LanceDB-OpenCode" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "  Seleccion [1/2/3]: " -NoNewline -ForegroundColor White
+            $pluginChoice = Read-Host
+
+            switch ($pluginChoice) {
+                "1" { $config.MemoryPlugin = "kinnycode" }
+                "2" { $config.MemoryPlugin = "mem0" }
+                "3" { $config.MemoryPlugin = "lancedb" }
+                default {
+                    Write-Err "Seleccion invalida"
+                    exit 1
+                }
+            }
+
+            # URL del servidor
+            Write-Host ""
+            if ($config.MemoryPlugin -eq "kinnycode") {
+                Write-Host "  URL del servidor KinnyCodeMemory (default: http://localhost:8007): " -NoNewline -ForegroundColor White
+            } elseif ($config.MemoryPlugin -eq "mem0") {
+                Write-Host "  URL del servidor Mem0 (default: http://localhost:8003): " -NoNewline -ForegroundColor White
+            } else {
+                Write-Host "  URL del servidor: " -NoNewline -ForegroundColor White
+            }
+            $url = Read-Host
+
+            # Defaults segun plugin
+            if (-not $url) {
+                switch ($config.MemoryPlugin) {
+                    "kinnycode" { $url = "http://localhost:8007" }
+                    "mem0" { $url = "http://localhost:8003" }
+                    default { $url = "http://localhost:8007" }
+                }
+            }
+            $config.MemoryUrl = $url
+
+            # Project ID (solo para KinnyCodeMemory)
+            if ($config.MemoryPlugin -eq "kinnycode") {
+                Write-Host ""
+                Write-Host "  Project ID:" -ForegroundColor Yellow
+                Write-Host "    Enter = generar nuevo ID" -ForegroundColor Gray
+                Write-Host "    O escribe el ID existente" -ForegroundColor Gray
+                Write-Host "  ID: " -NoNewline -ForegroundColor White
+                $id = Read-Host
+                $config.ProjectId = if ($id) { $id } else { [guid]::NewGuid().ToString("N").Substring(0, 16) }
+            }
+
+            $config.MemoryMode = "local"
+        }
+        default {
+            Write-Err "Seleccion invalida"
+            exit 1
+        }
+    }
+
+    return $config
 }
 
-# 2. Generar UUID para KinnyCode
-$ProjectId = [guid]::NewGuid().ToString("N").Substring(0, 16)
-Write-Host "[1/7] Project ID generado: $ProjectId" -ForegroundColor Green
+# ============================================================================
+# COPIA DEL FRAMEWORK
+# ============================================================================
 
-# 3. Verificar estructura del bundle
-$FrameworkDir = Join-Path $PSScriptRoot ".." "framework" ".opencode"
-if (-not (Test-Path $FrameworkDir)) {
-    Write-Host "ERROR: No se encontro el framework en $FrameworkDir" -ForegroundColor Red
-    Write-Host "Asegurate de ejecutar este script desde init-scripts/" -ForegroundColor Yellow
-    exit 1
+function Copy-Framework {
+    param([string]$ProjectDir)
+
+    Write-Step "FRAMEWORK" "Copiando framework EitL..."
+
+    $frameworkDir = Join-Path $PSScriptRoot ".." "framework" ".opencode"
+    if (-not (Test-Path $frameworkDir)) {
+        Write-Err "Framework no encontrado en: $frameworkDir"
+        Write-Host "  Ejecuta este script desde init-scripts/" -ForegroundColor Gray
+        exit 1
+    }
+
+    $targetDir = Join-Path $ProjectDir ".opencode"
+
+    # Backup si existe
+    if (Test-Path $targetDir) {
+        $backupName = ".opencode-backup-$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+        Write-Warn "Backup de .opencode existente -> $backupName"
+        Copy-Item -Recurse -Force $targetDir (Join-Path $ProjectDir $backupName)
+        Remove-Item -Recurse -Force $targetDir
+    }
+
+    Copy-Item -Recurse -Force $frameworkDir $targetDir
+    Write-Ok "Framework copiado"
 }
 
-# 4. Backup y REEMPLAZO si existe .opencode (M8): el backup se conserva, pero el
-#    .opencode existente se elimina antes de copiar el framework para evitar la
-#    estructura anidada .opencode/.opencode/ que hacía el pipeline no funcional.
-if (Test-Path ".opencode") {
-    $BackupName = ".opencode-backup-$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-    Write-Host "[2/7] Backup de .opencode existente -> $BackupName" -ForegroundColor Yellow
-    Copy-Item -Recurse -Force ".opencode" $BackupName
-    Write-Host "      Reemplazando .opencode existente (copia limpia del framework)..." -ForegroundColor Yellow
-    Remove-Item -Recurse -Force ".opencode"
+# ============================================================================
+# GENERACION DE CONFIGURACION
+# ============================================================================
+
+function New-ProjectConfig {
+    param(
+        [string]$ProjectDir,
+        [hashtable]$Config
+    )
+
+    Write-Step "CONFIG" "Generando configuracion..."
+
+    $opencodeDir = Join-Path $ProjectDir ".opencode"
+    if (-not (Test-Path $opencodeDir)) {
+        New-Item -ItemType Directory -Path $opencodeDir | Out-Null
+    }
+
+    $configPath = Join-Path $opencodeDir "opencode.jsonc"
+
+    # Construir JSON
+    $lines = @()
+    $lines += '{'
+    $lines += '  "$schema": "https://opencode.ai/schema.json",'
+    $lines += '  "plugins": ['
+
+    # Plugin de memoria
+    if ($Config.MemoryMode -ne "standalone") {
+        switch ($Config.MemoryPlugin) {
+            "kinnycode" {
+                $lines += '    ["opencode-kinnycode-memory", {'
+                $lines += "      `"serverUrl`": `"$($Config.MemoryUrl)`","
+                $lines += "      `"projectId`": `"$($Config.ProjectId)`","
+                $lines += '      "enabled": true'
+                $lines += '    }],'
+            }
+            "mem0" {
+                $lines += '    "mem0",'
+            }
+            "lancedb" {
+                $lines += '    "lancedb-opencode-pro",'
+            }
+        }
+    }
+
+    $lines += '    "context-guard"'
+    $lines += '  ]'
+    $lines += '}'
+
+    $lines -join "`n" | Set-Content $configPath -Encoding UTF8
+    Write-Ok "Configuracion guardada: $configPath"
+
+    # TUI config
+    $tuiPath = Join-Path $opencodeDir "tui.json"
+    '{"theme":"dark"}' | Set-Content $tuiPath -Encoding UTF8
+    Write-Ok "Configuracion TUI guardada: $tuiPath"
 }
 
-# 5. Copiar framework
-Write-Host "[3/7] Copiando framework EitL..." -ForegroundColor Cyan
-Copy-Item -Recurse -Force $FrameworkDir ".opencode"
+function New-ArtifactsStructure {
+    param(
+        [string]$ProjectDir,
+        [hashtable]$Config
+    )
 
-# 6. Generar configuracion desde plantilla
-$TemplateDir = Join-Path $PSScriptRoot ".." "project-config-template"
-$TemplatePath = Join-Path $TemplateDir "opencode.jsonc.template"
-$TuiTemplatePath = Join-Path $TemplateDir "tui.json.template"
+    Write-Step "ARTIFACTS" "Creando estructura de artefactos..."
 
-if (-not (Test-Path $TemplatePath)) {
-    Write-Host "ERROR: Plantilla opencode.jsonc.template no encontrada" -ForegroundColor Red
-    exit 1
-}
+    $artifactsDir = Join-Path $ProjectDir "..\eitl-artifacts"
+    if (-not (Test-Path $artifactsDir)) {
+        New-Item -ItemType Directory -Path $artifactsDir | Out-Null
+        Write-Ok "Directorio de artefactos creado"
+    } else {
+        Write-Warn "Directorio de artefactos ya existe"
+    }
 
-Write-Host "[4/7] Generando opencode.jsonc..." -ForegroundColor Cyan
-$ConfigContent = Get-Content $TemplatePath -Raw
+    $modeLabel = switch ($Config.MemoryMode) {
+        "standalone" { "Standalone (Sin servidor)" }
+        "local" { "Servidor local" }
+        "remote" { "Servidor remoto" }
+    }
 
-# Detectar rutas de KinnyCode
-$PythonPath = Join-Path $KinnyCodePath ".venv\Scripts\python.exe"
-if (-not (Test-Path $PythonPath)) {
-    $PythonPath = Join-Path $KinnyCodePath ".venv\bin\python"
-}
-$WrapperPath = Join-Path $KinnyCodePath "mcp_wrapper.py"
+    $memoryInfo = switch ($Config.MemoryPlugin) {
+        "kinnycode" {
+            "- Plugin: opencode-kinnycode-memory`n- Servidor: $($Config.MemoryUrl)`n- Project ID: $($Config.ProjectId)"
+        }
+        "mem0" {
+            "- Plugin: mem0`n- Servidor: $($Config.MemoryUrl)"
+        }
+        "lancedb" {
+            "- Plugin: lancedb-opencode-pro`n- Servidor: $($Config.MemoryUrl)"
+        }
+        default {
+            "- Modo standalone`n- Estado guardado en eitl-artifacts/"
+        }
+    }
 
-# CORRECCION: Usar .Replace() en vez de -replace para evitar problemas con regex
-$ConfigContent = $ConfigContent.Replace('{{KINYCODE_PYTHON_PATH}}', $PythonPath.Replace('\', '\\'))
-$ConfigContent = $ConfigContent.Replace('{{KINYCODE_WRAPPER_PATH}}', $WrapperPath.Replace('\', '\\'))
-$ConfigContent = $ConfigContent.Replace('{{MEMORY_SERVER_URL}}', $MemoryServerUrl)
-$ConfigContent = $ConfigContent.Replace('{{KINNYCODE_PROJECT_ID}}', $ProjectId)
-$ConfigContent = $ConfigContent.Replace('{{CPU_BASEURL}}', $CpuBaseUrl)
-$ConfigContent = $ConfigContent.Replace('{{GPU_BASEURL}}', $GpuBaseUrl)
-$ConfigContent = $ConfigContent.Replace('{{API_KEY}}', $ApiKey)
-$ConfigContent = $ConfigContent.Replace('{{MEMORY_ENABLED}}', $MemoryEnabled)
-
-$ConfigContent | Set-Content ".opencode\opencode.jsonc" -Encoding UTF8
-
-# TUI config
-if (Test-Path $TuiTemplatePath) {
-    $TuiContent = Get-Content $TuiTemplatePath -Raw
-    $TuiContent | Set-Content ".opencode\tui.json" -Encoding UTF8
-}
-
-# 7. Crear directorio de artefactos
-$ArtifactsDir = "..\eitl-artifacts"
-if (-not (Test-Path $ArtifactsDir)) {
-    Write-Host "[5/7] Creando directorio de artefactos: $ArtifactsDir" -ForegroundColor Cyan
-    New-Item -ItemType Directory -Path $ArtifactsDir | Out-Null
-} else {
-    Write-Host "[5/7] Directorio de artefactos ya existe: $ArtifactsDir" -ForegroundColor Yellow
-}
-
-# 8. Crear initial project state
-$StatusPath = Join-Path $ArtifactsDir "CURRENT_STATE.md"
-$StatusContent = @"
+    $statePath = Join-Path $artifactsDir "CURRENT_STATE.md"
+    @"
 ## CURRENT PROJECT STATE
 
-**Proyecto**: $ProjectName
+**Proyecto**: $($Config.ProjectName)
 **Sprint**: 0 - Inicializacion
 **Fecha**: $(Get-Date -Format "yyyy-MM-dd")
 **Scrum Master**: ScrumMaster-Agent
-**KinnyCode Project ID**: $ProjectId
+**Memory Mode**: $modeLabel
+
+### Memory Configuration
+$memoryInfo
 
 ### Generated Artifacts
 - [ ] 01_Plan_Scrum.md
@@ -183,55 +350,142 @@ $StatusContent = @"
 
 ### Next Steps
 1. Ejecutar: opencode
-2. En el TUI: /start-SDD [your requirement]
-"@
-$StatusContent | Set-Content $StatusPath -Encoding UTF8
+2. En el TUI: /start-SDD [tu requerimiento]
+"@ | Set-Content $statePath -Encoding UTF8
 
-# 9. Verificacion
-Write-Host "[6/7] Verificando estructura..." -ForegroundColor Cyan
-$Checks = @(
-    (".opencode\opencode.jsonc", "Config principal"),
-    (".opencode\tui.json", "Config TUI"),
-    (".opencode\agents\scrum-master.md", "Agente scrum-master"),
-    (".opencode\agents\test-runner.md", "Agente test-runner"),
-    (".opencode\agents\qa-engineer.md", "Agente qa-engineer"),
-    (".opencode\agents\performance-engineer.md", "Agente performance-engineer"),
-    (".opencode\plugin\context-guard.ts", "Plugin context-guard"),
-    (".opencode\skills\test_execution\SKILL.md", "Skill test_execution"),
-    (".opencode\skills\code_quality_gate\SKILL.md", "Skill code_quality_gate"),
-    (".opencode\skills\performance_validation\SKILL.md", "Skill performance_validation")
-)
+    Write-Ok "Estado inicial creado: $statePath"
+}
 
-$AllOk = $true
-foreach ($check in $Checks) {
-    $path = $check[0]
-    $desc = $check[1]
-    if (Test-Path $path) {
-        Write-Host "  OK $desc" -ForegroundColor Green
-    } else {
-        Write-Host "  ERROR $desc NO ENCONTRADO" -ForegroundColor Red
-        $AllOk = $false
+# ============================================================================
+# VERIFICACION
+# ============================================================================
+
+function Test-Installation {
+    param([string]$ProjectDir)
+
+    Write-Step "VERIFY" "Verificando instalacion..."
+
+    $checks = @(
+        @{ P = ".opencode\opencode.jsonc"; D = "Config principal" },
+        @{ P = ".opencode\tui.json"; D = "Config TUI" },
+        @{ P = ".opencode\agents\scrum-master.md"; D = "Agente scrum-master" },
+        @{ P = ".opencode\plugin\context-guard.ts"; D = "Plugin context-guard" },
+        @{ P = ".opencode\skills\memory-adapter\SKILL.md"; D = "Skill memory-adapter" }
+    )
+
+    $allOk = $true
+    foreach ($c in $checks) {
+        $p = Join-Path $ProjectDir $c.P
+        if (Test-Path $p) {
+            Write-Ok $c.D
+        } else {
+            Write-Err "$($c.D) - NO ENCONTRADO"
+            $allOk = $false
+        }
+    }
+
+    return $allOk
+}
+
+# ============================================================================
+# PROGRAMA PRINCIPAL
+# ============================================================================
+
+Write-Header
+
+# Modo interactivo o parametrizado
+if ($NonInteractive -and $ProjectName -and $MemoryMode) {
+    Write-Host "  Modo: Parametrizado" -ForegroundColor Gray
+    $config = @{
+        ProjectName = $ProjectName
+        MemoryMode  = $MemoryMode
+        MemoryPlugin = $MemoryPlugin
+        MemoryUrl   = $MemoryUrl
+        ProjectId   = if ($ProjectId) { $ProjectId } else { [guid]::NewGuid().ToString("N").Substring(0, 16) }
+    }
+} else {
+    Write-Host "  Modo: Interactivo" -ForegroundColor Gray
+    $config = Get-InteractiveConfig
+}
+
+# Verificar prerrequisitos
+Write-Host ""
+if (-not (Test-Prerequisites)) {
+    Write-Err "Faltan prerrequisitos criticos"
+    exit 1
+}
+
+# Crear directorio del proyecto
+Write-Host ""
+Write-Step "PROJECT" "Creando proyecto: $($config.ProjectName)"
+
+$projectDir = Join-Path (Get-Location) $config.ProjectName
+if (-not (Test-Path $projectDir)) {
+    New-Item -ItemType Directory -Path $projectDir | Out-Null
+}
+
+# Copiar framework
+Copy-Framework -ProjectDir $projectDir
+
+# Generar configuracion
+New-ProjectConfig -ProjectDir $projectDir -Config $config
+
+# Crear artefactos
+New-ArtifactsStructure -ProjectDir $projectDir -Config $config
+
+# Verificar
+Write-Host ""
+$installOk = Test-Installation -ProjectDir $projectDir
+
+# Resumen
+$modeLabel = switch ($config.MemoryMode) {
+    "standalone" { "Standalone (Sin servidor)" }
+    "local" { "Servidor local" }
+    "remote" { "Servidor remoto" }
+}
+
+$pluginLabel = switch ($config.MemoryPlugin) {
+    "kinnycode" { "KinnyCodeMemory" }
+    "mem0" { "Mem0" }
+    "lancedb" { "LanceDB-OpenCode" }
+    default { "Ninguno" }
+}
+
+Write-Host ""
+Write-Host "==============================================" -ForegroundColor Green
+Write-Host "  INICIALIZACION COMPLETADA" -ForegroundColor Green
+Write-Host "==============================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "  Proyecto: $($config.ProjectName)" -ForegroundColor Cyan
+Write-Host "  Memoria: $modeLabel" -ForegroundColor Cyan
+
+if ($config.MemoryMode -ne "standalone") {
+    Write-Host "  Plugin: $pluginLabel" -ForegroundColor Cyan
+    Write-Host "  Servidor: $($config.MemoryUrl)" -ForegroundColor Cyan
+    if ($config.MemoryPlugin -eq "kinnycode") {
+        Write-Host "  Project ID: $($config.ProjectId)" -ForegroundColor Cyan
     }
 }
 
-# 10. Resumen
 Write-Host ""
-Write-Host "==========================================" -ForegroundColor Green
-Write-Host "  INICIALIZACION COMPLETADA" -ForegroundColor Green
-Write-Host "==========================================" -ForegroundColor Green
-Write-Host "Proyecto: $ProjectName" -ForegroundColor White
-Write-Host "Project ID: $ProjectId" -ForegroundColor White
+Write-Host "  Archivos generados:" -ForegroundColor Yellow
+Write-Host "    .opencode/opencode.jsonc" -ForegroundColor Gray
+Write-Host "    .opencode/tui.json" -ForegroundColor Gray
+Write-Host "    ../eitl-artifacts/CURRENT_STATE.md" -ForegroundColor Gray
 Write-Host ""
-Write-Host "Archivos generados:" -ForegroundColor Cyan
-Write-Host "  .opencode/opencode.jsonc" -ForegroundColor Gray
-Write-Host "  .opencode/tui.json" -ForegroundColor Gray
-Write-Host "  $ArtifactsDir/CURRENT_STATE.md" -ForegroundColor Gray
-Write-Host ""
-Write-Host "Proximos pasos:" -ForegroundColor Yellow
-Write-Host "  1. opencode" -ForegroundColor White
-Write-Host "  2. En el TUI: /start-SDD [your requirement]" -ForegroundColor White
+Write-Host "  Siguientes pasos:" -ForegroundColor Yellow
+Write-Host "    1. cd $($config.ProjectName)" -ForegroundColor White
+Write-Host "    2. opencode" -ForegroundColor White
+Write-Host "    3. /start-SDD [tu requerimiento]" -ForegroundColor White
+
+if ($config.MemoryMode -ne "standalone") {
+    Write-Host ""
+    Write-Host "  NOTA: Asegurate de que el servidor de memoria este corriendo en:" -ForegroundColor Yellow
+    Write-Host "    $($config.MemoryUrl)" -ForegroundColor Gray
+}
+
 Write-Host ""
 
-if (-not $AllOk) {
-    Write-Host "ADVERTENCIA: Algunos archivos no se encontraron. Verifica el framework." -ForegroundColor Red
+if (-not $installOk) {
+    Write-Warn "Algunos archivos no se encontraron. Verifica el framework."
 }

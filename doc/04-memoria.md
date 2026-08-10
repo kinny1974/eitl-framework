@@ -1,200 +1,173 @@
-# 04 · Memoria
+# 04 - Memoria
 
-> **Objetivo**: entender los modos de memoria de EitL (standalone y servidores MCP),
-> cómo se configura cada backend, cómo se auto-detectan y cómo migrar memoria entre
-> proyectos.
-
----
-
-## 4.1 Backends soportados y prioridad de detección
-
-La skill `memory-adapter` actúa como **capa de abstracción**: expone un API unificada
-(operaciones `memory_*`) y enruta cada operación al backend detectado según el nombre del
-servidor MCP configurado en `opencode.jsonc`.
-
-| Prioridad | Servidor MCP | Tipo | Almacenamiento | Notas |
-|-----------|--------------|------|----------------|-------|
-| 1 | `kinnycode-memory` | Multiláyer propietario | LanceDB (local) | El stack recomendado por EitL, integración MCP |
-| 2 | `mem0` | Memoria conversacional | Cloud | `npx -y mem0-mcp` |
-| 3 | `lancedb-opencode` | Plugin nativo de OpenCode | LanceDB (local) | Desde el marketplace de OpenCode |
-| 4 | `memory` | Servidor MCP genérico | Cualquiera | Backend estándar |
-
-Si **ningún** backend MCP está disponible, el pipeline opera en **modo standalone**
-(sección 4.2).
+> **Objetivo**: entender los modos de memoria de EitL (standalone, KinnyCodeMemory, Mem0, LanceDB),
+> y como se configuran.
 
 ---
 
-## 4.2 Modo standalone (sin servidor de memoria)
+## 4.1 Plugins de memoria soportados
 
-No requiere ningún proceso externo. Todo se persiste en archivos Markdown dentro de
-`../eitl-artifacts/`:
+| Plugin | Tipo | Almacenamiento | URL Default |
+|--------|------|----------------|-------------|
+| **kinnycode** | KinnyCodeMemory | LanceDB (servidor) | http://localhost:8007 |
+| **mem0** | Mem0 | Cloud | http://localhost:8003 |
+| **lancedb** | LanceDB-OpenCode | LanceDB (local) | http://localhost:8007 |
+| **Ninguno** | Standalone | Archivos locales | N/A |
+
+---
+
+## 4.2 Standalone (Default)
+
+Sin servidor de memoria. El estado se guarda en `eitl-artifacts/`:
 
 | Archivo | Contenido |
 |---------|-----------|
-| `CURRENT_STATE.md` | Estado del proyecto: sprint, artefactos, backlog, gates, bloqueadores |
-| `TASKS.md` | Registro de tareas del pipeline |
-| `DECISIONS.md` | Historial de decisiones (append) |
+| `CURRENT_STATE.md` | Estado del proyecto |
+| `TASKS.md` | Registro de tareas |
+| `DECISIONS.md` | Historial de decisiones |
 
-**Ventajas**: cero dependencias, arranque inmediato, fácil de versionar con Git.
-**Límites**: no hay búsqueda semántica ni memoria entre sesiones más allá de lo que se
-recupera al leer estos archivos al arrancar.
-
-> ✅ **Standalone por defecto (T-17 resuelto)**: los scripts de inicialización ahora leen
-> `MEMORY_ENABLED`. Sin definir o `false` → el MCP se genera con `"enabled": false`
-> (standalone puro, sin pasos manuales). `true` → `"enabled": true` (con servidor).
+**Ventajas**: cero dependencias, arranque inmediato.
 
 ---
 
-## 4.3 Configuración por backend
+## 4.3 KinnyCodeMemory (Recomendado)
 
-### KinnyCode (prioridad 1)
+[KinnyCodeMemory](https://github.com/kinny1974/kinnyCodeMemory) es un servidor de memoria semantica.
 
-La configuración la genera el inicializador rellenando la plantilla:
+### Instalar
 
-```jsonc
+**Opcion A: Binario precompilado**
+1. Ir a: https://github.com/kinny1974/kinnyCodeMemory/releases
+2. Descargar para tu plataforma
+3. Ejecutar:
+   ```bash
+   # Windows
+   .\KinnyCodeMemory-Server.exe
+
+   # Linux
+   ./KinnyCodeMemory-Server
+   ```
+
+**Opcion B: Desde source**
+```bash
+git clone https://github.com/kinny1974/kinnyCodeMemory.git
+cd kinnyCodeMemory
+pip install -r requirements.txt
+python memory_server.py
+```
+
+### Project ID
+
+El **Project ID** es un identificador unico para tu proyecto.
+
+- **Proyecto nuevo**: el init script genera un ID automaticamente
+- **Proyecto existente**: ingresa el ID que ya tienes
+
+### Inicializar
+
+**Modo parametrizado:**
+```powershell
+# Windows - Proyecto nuevo
+.\init-eitl.ps1 -ProjectName "mi-proyecto" -MemoryMode local -MemoryPlugin kinnycode -MemoryUrl "http://localhost:8007"
+
+# Windows - Proyecto existente
+.\init-eitl.ps1 -ProjectName "mi-proyecto" -MemoryMode local -MemoryPlugin kinnycode -MemoryUrl "http://localhost:8007" -ProjectId "abc123def456"
+```
+
+```bash
+# Linux - Proyecto nuevo
+./init-eitl.sh "mi-proyecto" local kinnycode "http://localhost:8007"
+
+# Linux - Proyecto existente
+./init-eitl.sh "mi-proyecto" local kinnycode "http://localhost:8007" "abc123def456"
+```
+
+**Modo interactivo:**
+```powershell
+.\init-eitl.ps1
+```
+
+El script preguntara:
+1. Tipo de servidor (KinnyCodeMemory, Mem0, LanceDB)
+2. URL del servidor
+3. Project ID (solo KinnyCodeMemory)
+
+### Herramientas
+
+| Categoria | Herramientas |
+|-----------|--------------|
+| Indexacion | `indexar_archivo`, `indexar_proyecto`, `indexar_documento`, `reindexar_archivo` |
+| Busqueda | `buscar_codigo`, `buscar_documentos`, `recuperar_contexto` |
+| Documentos | `listar_documentos`, `eliminar_documento` |
+| Conversaciones | `guardar_conversacion`, `cargar_conversacion`, `guardar_decision` |
+| Tareas | `guardar_tarea`, `buscar_tareas` |
+| Memoria | `consolidar_memoria`, `contexto_sesion`, `limpiar_proyecto` |
+
+---
+
+## 4.4 Mem0
+
+[Mem0](https://mem0.ai/) es un servicio de memoria conversacional en la nube.
+
+### Inicializar
+
+```powershell
+# Windows
+.\init-eitl.ps1 -ProjectName "mi-proyecto" -MemoryMode local -MemoryPlugin mem0 -MemoryUrl "http://localhost:8003"
+```
+
+```bash
+# Linux
+./init-eitl.sh "mi-proyecto" local mem0 "http://localhost:8003"
+```
+
+### Instalar Mem0
+
+```bash
+npx -y mem0-mcp
+```
+
+---
+
+## 4.5 LanceDB-OpenCode
+
+[lancedb-opencode-pro](https://github.com/tryweb/lancedb-opencode-pro) es un plugin de memoria local con LanceDB.
+
+### Inicializar
+
+```powershell
+# Windows
+.\init-eitl.ps1 -ProjectName "mi-proyecto" -MemoryMode local -MemoryPlugin lancedb
+```
+
+```bash
+# Linux
+./init-eitl.sh "mi-proyecto" local lancedb
+```
+
+### Configurar
+
+Crear `~/.config/opencode/lancedb-opencode-pro.json`:
+```json
 {
-  "mcp": {
-    "kinnycode-memory": {
-      "type": "local",
-      "command": [
-        "{{KINYCODE_PYTHON_PATH}}",    // python del venv de KinnyCode
-        "{{KINYCODE_WRAPPER_PATH}}"    // mcp_wrapper.py
-      ],
-      "description": "KinnyCode Multi-Layer Memory",
-      "environment": {
-        "MEMORY_SERVER_URL": "{{MEMORY_SERVER_URL}}",   // p. ej. http://127.0.0.1:8005
-        "KINNYCODE_PROJECT_ID": "{{KINNYCODE_PROJECT_ID}}" // 16 hex generado por el script
-      },
-      "enabled": {{MEMORY_ENABLED}}   // true/false según MEMORY_ENABLED del entorno
-    }
+  "provider": "lancedb-opencode-pro",
+  "dbPath": "~/.opencode/memory/lancedb",
+  "embedding": {
+    "provider": "ollama",
+    "model": "nomic-embed-text",
+    "baseUrl": "http://127.0.0.1:11434"
   }
 }
 ```
 
-El inicializador detecta el intérprete del venv automáticamente:
-- Windows: `<KinnyCodePath>\.venv\Scripts\python.exe`
-- Linux/macOS: `<KINYCODE_PATH>/.venv/bin/python`
-
-> 📌 Los placeholders `{{…}}` de la documentación del framework son genéricos
-> (`MEMORY_PYTHON_PATH`, `MEMORY_WRAPPER_PATH`, `MEMORY_SERVER_URL`, `PROJECT_ID`,
-> `MEMORY_ENABLED`); los scripts concretos usan `KINYCODE_PYTHON_PATH`/`KINYCODE_WRAPPER_PATH`.
-
-### Mem0 (prioridad 2)
-
-Configura el bloque `mcp` con el servidor MCP de Mem0 (ver [02 · Sección 2.4-B](02-inicializar-proyecto-nuevo.md)):
-
-```jsonc
-{
-  "mcp": {
-    "mem0": {
-      "type": "local",
-      "command": ["npx", "-y", "mem0-mcp"],
-      "environment": { "MEM0_API_KEY": "tu-clave-mem0" },
-      "enabled": true
-    }
-  }
-}
-```
-
-> ℹ️ El comando `npx -y mem0-mcp` está en el README del framework; `MEM0_API_KEY` es el
-> nombre usado por la documentación oficial de Mem0 (verifícalo para tu versión).
-
-### LanceDB-OpenCode (prioridad 3)
-
-1. Instala el plugin `lancedb-opencode` (marketplace de OpenCode).
-2. Añádelo al array `"plugin"` de `.opencode/opencode.jsonc` y a `tui.json`.
-3. El servidor MCP `lancedb-memory` se auto-detecta al arrancar el pipeline.
-
 ---
 
-## 4.4 API unificada de memoria (`memory_adapter`)
+## 4.6 Resumen de comandos
 
-Independientemente del backend, los agentes usan la misma API:
-
-| Operación | Descripción |
-|-----------|-------------|
-| `memory_save_state(project_id, state)` | Guarda el estado del proyecto |
-| `memory_load_state(project_id)` | Recupera el estado |
-| `memory_register_task(...)` | Registra una tarea del pipeline |
-| `memory_search(query, n_results, filter_type)` | Búsqueda semántica |
-| `memory_export(output_dir, layers)` | Exporta memoria a archivos |
-| `memory_import(import_dir, mode)` | Importa memoria (restore/merge) |
-
----
-
-## 4.5 Capas de memoria (KinnyCode)
-
-La memoria se organiza en 4 capas, exportables de forma selectiva:
-
-| Capa | Contenido |
-|------|-----------|
-| **C1** | Conversaciones |
-| **C2** | Decisiones |
-| **C3** | Código indexado |
-| **C4** | Documentos |
-
----
-
-## 4.6 Exportación e importación de memoria
-
-### Exportar (`memory-exporter`)
-
-Genera una carpeta autocontenida con checksums:
-
-```
-memory-export_YYYY-MM-DD_HHMMSS/
-├── _manifest.json          ← timestamp + versión
-├── layer1_conversations/
-├── layer2_decisions/
-├── layer3_code/
-├── layer4_documents/
-├── tasks/
-└── project_context.md
-```
-
-- Export reproducible y con SHA-256 por archivo.
-- Soporta exportación selectiva por capa.
-- Formato compatible con `memory-importer`.
-
-### Importar (`memory-importer`)
-
-| Parámetro | Valores | Efecto |
-|-----------|---------|--------|
-| `mode` | `restore` | Reemplazo total |
-| `mode` | `merge` | Fusión aditiva (actualizaciones parciales) |
-
-Flujo: valida `_manifest.json` → restaura por capa (reportando conteos) → registra errores
-→ verifica checksums cuando existen. **Requiere confirmación** antes de modificar.
-
----
-
-## 4.7 Portabilidad de proyectos (SIGMA-Team)
-
-`portability-export`/`portability-import` empaquetan el proyecto completo (código,
-artefactos, decisiones y configuración de agentes) en rutas relativas con checksums
-SHA-256, de modo que cualquier instancia de EitL puede reconstruirlo (ver
-[03 · Sección 3.5](03-inicializar-proyecto-existente.md)).
-
----
-
-## 4.8 Conmutar entre standalone y memoria
-
-### Standalone → Memoria
-
-1. Prepara el servidor MCP (KinnyCode/Mem0/LanceDB) y verifica que responde.
-2. Configura el bloque `mcp` en `.opencode/opencode.jsonc` (o vuelve a ejecutar el
-   inicializador con las variables de memoria).
-3. Si tienes memoria de otro sitio, impórtala con `memory-importer`.
-4. Arranca `opencode` — `memory-adapter` detectará el backend y enrutará las operaciones
-   `memory_*`.
-
-### Memoria → Standalone
-
-1. Pon `"enabled": false` en el bloque `mcp` (o elimínalo).
-2. Exporta tu memoria primero si quieres conservarla: `memory_export(...)`.
-3. A partir de ahí, el estado se persiste solo en archivos (`CURRENT_STATE.md`,
-   `TASKS.md`, `DECISIONS.md`).
-
----
-
-**← [03 · Inicializar un proyecto existente](03-inicializar-proyecto-existente.md)** · **Siguiente → [05 · Pipeline y comandos](05-pipeline-y-comandos.md)**
+| Modo | Comando |
+|------|---------|
+| Standalone | `.\init-eitl.ps1 -ProjectName "x" -MemoryMode standalone` |
+| KinnyCodeMemory (nuevo) | `.\init-eitl.ps1 -ProjectName "x" -MemoryMode local -MemoryPlugin kinnycode -MemoryUrl "http://localhost:8007"` |
+| KinnyCodeMemory (existente) | `.\init-eitl.ps1 -ProjectName "x" -MemoryMode local -MemoryPlugin kinnycode -MemoryUrl "http://localhost:8007" -ProjectId "abc123"` |
+| Mem0 | `.\init-eitl.ps1 -ProjectName "x" -MemoryMode local -MemoryPlugin mem0 -MemoryUrl "http://localhost:8003"` |
+| LanceDB | `.\init-eitl.ps1 -ProjectName "x" -MemoryMode local -MemoryPlugin lancedb` |

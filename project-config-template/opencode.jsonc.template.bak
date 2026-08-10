@@ -1,17 +1,20 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": [
-    ["opencode-kinnycode-memory", {
-      "serverUrl": "{{KINNYCODE_SERVER_URL}}",
-      "projectId": "{{KINNYCODE_PROJECT_ID}}"
-    }],
-    "opencode-working-memory",
-    "context-guard",
-    "@tarquinen/opencode-dcp",
-    "opencode-snip",
-    "envsitter-guard",
-    "@slkiser/opencode-quota"
-  ],
+  "mcp": {
+    "kinnycode-memory": {
+      "type": "local",
+      "command": [
+        "{{KINYCODE_PYTHON_PATH}}",
+        "{{KINYCODE_WRAPPER_PATH}}"
+      ],
+      "description": "KinnyCode Multi-Layer Memory - RAG semantico, persistencia de conversaciones, indexacion de documentos, tareas agentivas.",
+      "environment": {
+        "MEMORY_SERVER_URL": "{{MEMORY_SERVER_URL}}",
+        "KINNYCODE_PROJECT_ID": "{{KINNYCODE_PROJECT_ID}}"
+      },
+      "enabled": {{MEMORY_ENABLED}}
+    }
+  },
   "provider": {
     "llama-cpp-cpu": {
       "name": "Hell-House (CPU Stack)",
@@ -58,6 +61,14 @@
       }
     }
   },
+  "plugin": [
+    "opencode-working-memory",
+    "context-guard",
+    "@tarquinen/opencode-dcp",
+    "opencode-snip",
+    "envsitter-guard",
+    "@slkiser/opencode-quota"
+  ],
   "agent": {
     "scrum-master": {
       "description": "Technical Scrum Master of the Engineering in the Loop (EitL) pipeline. Manages project state, coordinates agents via @mentions, and generates the CURRENT PROJECT STATE block in every interaction. The only agent that interacts directly with the user.",

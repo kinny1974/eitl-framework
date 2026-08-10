@@ -1,6 +1,6 @@
 ---
 name: memory-adapter
-description: "Generic MCP abstraction layer for memory systems. Compatible with KinnyCode, Mem0, LanceDB-OpenCode, or any MCP memory server."
+description: "Generic memory abstraction layer for EitL. Compatible with KinnyCode Memory Plugin (native TypeScript), Mem0, LanceDB-OpenCode, or standalone mode."
 ---
 
 # Skill: memory-adapter
@@ -10,59 +10,144 @@ description: "Generic MCP abstraction layer for memory systems. Compatible with 
 This skill provides a unified interface for agentive memory operations, decoupling the EitL pipeline from any specific memory implementation.
 
 ## Design Principle
-> **Convention over Configuration**: If an MCP server named `memory` (or `kinnycode-memory`, `mem0`, `lancedb-memory`) exists, this skill auto-detects it and routes operations to the correct backend.
+> **Convention over Configuration**: The skill auto-detects the available memory backend and routes operations to the correct implementation.
 
-## Auto-Detection Priority
+## Memory Backend Priority
 
-1. `kinnycode-memory` — Proprietary multilayer system (LanceDB)
-2. `mem0` — Conversational memory with entity extraction
-3. `lancedb-opencode` — Native OpenCode plugin with LanceDB
-4. `memory` — Generic standard MCP server
+1. **KinnyCode Memory Plugin** (Native TypeScript) — Recommended
+   - Plugin: `opencode-kinnycode-memory`
+   - 18 native tools for indexing, search, conversations, tasks, and memory management
+   - No Python dependencies, integrated in OpenCode
+   - Best performance and maintainability
+
+2. **KinnyCode MCP Wrapper** (Legacy Python)
+   - Requires Python + httpx + mcp
+   - Two codebases to maintain
+   - Consider migrating to native plugin
+
+3. **Mem0** — Conversational memory with entity extraction
+   - Cloud-based, `npx -y mem0-mcp`
+
+4. **LanceDB-OpenCode** — Native OpenCode plugin with LanceDB
+   - Local storage, OpenCode marketplace
+
+5. **Standalone** — File-based (no memory server)
+   - All state persists in markdown files inside `eitl-artifacts/`
 
 ## Unified Memory API
 
+### With KinnyCode Memory Plugin (Native)
+
+When the plugin `opencode-kinnycode-memory` is configured, use these tools directly:
+
+#### Indexing (4 tools)
+- `indexar_archivo` — Index a code file
+- `indexar_proyecto` — Index multiple files
+- `indexar_documento` — Index PDF/MD/TXT document
+- `reindexar_archivo` — Re-index if hash changed
+
+#### Search (3 tools)
+- `buscar_codigo` — Semantic search in code
+- `buscar_documentos` — Search in documents
+- `recuperar_contexto` — Full RAG (all layers)
+
+#### Document Management (2 tools)
+- `listar_documentos` — List indexed documents
+- `eliminar_documento` — Delete a document
+
+#### Conversations & Decisions (3 tools)
+- `guardar_conversacion` — Save conversation history
+- `cargar_conversacion` — Retrieve conversation history
+- `guardar_decision` — Save technical decision
+
+#### Tasks (2 tools)
+- `guardar_tarea` — Create/update a task (L5)
+- `buscar_tareas` — Semantic search in tasks
+
+#### Memory Management (3 tools)
+- `consolidar_memoria` — Consolidate memory (remove obsolete)
+- `contexto_sesion` — Proactive session context
+- `limpiar_proyecto` — Delete all project data
+
+#### Project (1 tool)
+- `info_proyecto` — Project statistics
+
+### With MCP Wrapper (Legacy)
+
 All operations use the `memory_` prefix and are translated to the detected backend:
 
-### 1. Save Project State
+#### Save Project State
 ```
 memory_save_state(project_id, state_object)
 ```
 
-### 2. Load Project State
+#### Load Project State
 ```
 memory_load_state(project_id)
 ```
 
-### 3. Register Task
+#### Register Task
 ```
 memory_register_task(task_id, title, description, status, priority, dependencies)
 ```
 
-### 4. Search Memory
+#### Search Memory
 ```
 memory_search(query, n_results, filter_type)
 ```
 
-### 5. Export Memory
+#### Export Memory
 ```
 memory_export(output_dir, layers)
 ```
 
-### 6. Import Memory
+#### Import Memory
 ```
 memory_import(import_dir, mode)
 ```
 
-## Standalone Mode (No Memory Server)
+### Standalone Mode (No Memory Server)
 
-If no MCP memory backend is detected, the pipeline operates in **standalone mode**:
+If no memory backend is detected, the pipeline operates in **standalone mode**:
 
 - All state persists in markdown files inside `eitl-artifacts/`
 - Tasks are tracked in `eitl-artifacts/TASKS.md`
 - Decisions are appended to `eitl-artifacts/DECISIONS.md`
 - Cross-session context is recovered by reading these files at startup
 
-## Configuration in opencode.jsonc
+## Configuration
+
+### Option 1: KinnyCode Memory Plugin (Recommended)
+
+Add to `opencode.jsonc`:
+
+```jsonc
+{
+  "plugin": [
+    ["opencode-kinnycode-memory", {
+      "serverUrl": "http://192.168.2.111:8007",
+      "projectId": "6b6a8b869aea48ad"
+    }]
+  ]
+}
+```
+
+Or using environment variables:
+
+```powershell
+$env:KINNYCODE_SERVER_URL = "http://192.168.2.111:8007"
+$env:KINNYCODE_PROJECT_ID = "6b6a8b869aea48ad"
+```
+
+Then in `opencode.jsonc`:
+
+```jsonc
+{
+  "plugin": ["opencode-kinnycode-memory"]
+}
+```
+
+### Option 2: MCP Wrapper (Legacy)
 
 ```jsonc
 {
@@ -79,3 +164,72 @@ If no MCP memory backend is detected, the pipeline operates in **standalone mode
   }
 }
 ```
+
+### Option 3: Standalone (No Memory Server)
+
+Set `MEMORY_ENABLED=false` in `.env` or leave memory configuration empty.
+
+## EitL Pipeline Integration
+
+### Automatic State Persistence
+
+The EitL pipeline automatically saves:
+
+1. **Project State** → `eitl-artifacts/CURRENT_STATE.md` (standalone) or KinnyCode memory
+2. **Tasks** → `eitl-artifacts/TASKS.md` (standalone) or KinnyCode tasks layer
+3. **Decisions** → `eitl-artifacts/DECISIONS.md` (standalone) or KinnyCode decisions layer
+
+### Cross-Session Recovery
+
+When starting a new session:
+
+1. If KinnyCode plugin is configured: `recuperar_contexto` retrieves all relevant context
+2. If standalone: Read `eitl-artifacts/CURRENT_STATE.md` to restore project state
+
+### Agent Memory Operations
+
+Agents can use memory operations directly:
+
+```
+# Index current project files
+indexar_proyecto(project_path=".", language="typescript")
+
+# Search for architectural decisions
+recuperar_contexto(prompt="What architectural decisions were made?")
+
+# Save a technical decision
+guardar_decision(title="Use PostgreSQL", rationale="ACID compliance required")
+```
+
+## Migration from MCP Wrapper to Native Plugin
+
+To migrate from the MCP wrapper to the native KinnyCodeMemory plugin:
+
+1. **Install the plugin**:
+   ```bash
+   cd F:\kinnyCodeMemory\plugin-kinnycode
+   npm install
+   npm run build
+   ```
+
+2. **Update opencode.jsonc**:
+   - Remove the `mcp.kinnycode-memory` section
+   - Add `"opencode-kinnycode-memory"` to the `plugin` array
+
+3. **Update environment variables**:
+   - Replace `MEMORY_SERVER_URL` with `KINNYCODE_SERVER_URL`
+   - Replace `PROJECT_ID` with `KINNYCODE_PROJECT_ID`
+
+4. **Test the integration**:
+   - Start OpenCode: `opencode`
+   - Verify plugin loaded: `/mcp`
+   - Test a tool: `info_proyecto`
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Plugin not found | Ensure `opencode-kinnycode-memory` is installed and built |
+| Server connection failed | Verify server is running: `ssh hell-house "systemctl status kinnycodememory"` |
+| Project ID not found | Check available projects: `curl -X POST http://192.168.2.111:8007/project-info -H "Content-Type: application/json" -d '{"project_id": "..."}'` |
+| Tools not appearing | Restart OpenCode after adding plugin to config |
