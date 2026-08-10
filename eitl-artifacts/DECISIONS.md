@@ -265,7 +265,7 @@
 
 ## D-019 · 2026-08-09 — Integración del plugin nativo KinnyCodeMemory (v1.1.0)
 
-- **Contexto**: el framework EitL v1.0b usaba un wrapper MCP de Python para conectarse al
+- **Contexto**: el framework EitL v1.0.1b usaba un wrapper MCP de Python para conectarse al
   servidor KinnyCode Memory. Este enfoque tenía limitaciones: dependencias de Python,
   dos codebases, proceso separado, overhead de MCP, y mantenimiento complejo.
 - **Decisión**: migrar al plugin nativo de TypeScript `opencode-kinnycode-memory` que se
@@ -308,3 +308,4 @@
   5. Script de verificación del plugin
 - **Consecuencia**: El framework EitL v1.1.0 establece una nueva línea base con soporte
   nativo para memoria, preparado para futuras mejoras y mantenimiento simplificado.
+

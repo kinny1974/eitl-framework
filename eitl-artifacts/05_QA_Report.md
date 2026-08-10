@@ -1,6 +1,6 @@
-# 05 · QA Report — Línea base de calidad (EitL v1.0b)
+# 05 · QA Report — Línea base de calidad (EitL v1.0.1b)
 
-> **Framework**: EitL v1.0b · **Alcance**: auditoría completa del bundle (plugin, scripts de
+> **Framework**: EitL v1.0.1b · **Alcance**: auditoría completa del bundle (plugin, scripts de
 > init, plantillas, agentes, skills, documentación)
 > **Fecha**: 2026-08-08 · **Métodos**: type-check (tsc), análisis estático (grep/secrets),
 > revisión estructural, validación sintáctica (bash -n, PowerShell parser), pruebas unitarias
@@ -188,3 +188,4 @@ actual. Los archivos de tests quedan fuera del `tsconfig` (excluidos a propósit
 ---
 
 **← [04 · Test Report](04_Test_Report.md)** · **Siguiente → [06 · Performance Report](06_Performance_Report.md)**
+

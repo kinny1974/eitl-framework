@@ -1,6 +1,6 @@
-# 04 · Test Report — Línea base de QA (EitL v1.0b)
+# 04 · Test Report — Línea base de QA (EitL v1.0.1b)
 
-> **Framework**: EitL v1.0b · **Componente auditado**: plugin `context-guard` + entorno de pruebas
+> **Framework**: EitL v1.0.1b · **Componente auditado**: plugin `context-guard` + entorno de pruebas
 > **Fecha**: 2026-08-08 · **Herramienta**: Vitest 4.1.10 (Node v24.11.1 · Windows)
 > **Gate 4**: ✅ **PASS** — cobertura ≥ 80% y 0 tests fallidos
 
@@ -148,3 +148,4 @@ File              | % Stmts | % Branch | % Funcs | % Lines
 ---
 
 **Siguiente → [05 · QA Report](05_QA_Report.md)**
+

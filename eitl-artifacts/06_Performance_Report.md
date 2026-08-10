@@ -1,6 +1,6 @@
-# 06 · Performance Report — Línea base de rendimiento (EitL v1.0b)
+# 06 · Performance Report — Línea base de rendimiento (EitL v1.0.1b)
 
-> **Framework**: EitL v1.0b · **Componente medido**: plugin `context-guard`
+> **Framework**: EitL v1.0.1b · **Componente medido**: plugin `context-guard`
 > **Fecha**: 2026-08-08 · **Herramienta**: Vitest Bench 4.1.10
 > **Entorno**: Windows · Node v24.11.1 · fs real en tmpdir (persistencia real de estado)
 > **Gate 6**: ✅ **PASS** — todos los NFRs provisionales cumplidos (margen sobre la
@@ -207,3 +207,4 @@ de `fs.promises` queda documentado (D-009); el formateo determinista no añade c
 ---
 
 **← [05 · QA Report](05_QA_Report.md)**
+
