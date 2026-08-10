@@ -394,7 +394,7 @@ function Test-Installation {
 Write-Header
 
 # Modo interactivo o parametrizado
-if ($NonInteractive -and $ProjectName -and $MemoryMode) {
+if ($ProjectName -and $MemoryMode) {
     Write-Host "  Modo: Parametrizado" -ForegroundColor Gray
     $config = @{
         ProjectName = $ProjectName
@@ -489,3 +489,4 @@ Write-Host ""
 if (-not $installOk) {
     Write-Warn "Algunos archivos no se encontraron. Verifica el framework."
 }
+
