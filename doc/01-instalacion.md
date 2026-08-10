@@ -72,7 +72,16 @@ El framework usa plugins de OpenCode. La configuracion se genera automaticamente
 | Plugin | Proposito | Cuando se instala |
 |--------|-----------|-------------------|
 | `context-guard` | Monitoreo de contexto | Siempre (incluido en EitL) |
-| `opencode-kinnycode-memory` | Memoria semantica | Solo si eliges modo memoria |
+
+### Plugins de memoria (opcionales)
+
+Si eliges modo memoria en el init script, se configura uno de estos plugins:
+
+| Plugin | Servidor | Almacenamiento |
+|--------|----------|----------------|
+| `opencode-kinnycode-memory` | KinnyCodeMemory | LanceDB (servidor) |
+| `mem0` | Mem0 | Cloud |
+| `lancedb-opencode-pro` | LanceDB-OpenCode | LanceDB (local) |
 
 **Nota**: OpenCode instala los plugins automaticamente al arrancar cuando detecta las referencias en `opencode.jsonc`.
 
