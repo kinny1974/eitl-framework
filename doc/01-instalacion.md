@@ -83,10 +83,34 @@ Si eliges modo memoria en el init script, se configura uno de estos plugins:
 | `mem0` | Mem0 | Cloud |
 | `lancedb-opencode-pro` | LanceDB-OpenCode | LanceDB (local) |
 
-**Nota**: OpenCode instala los plugins automaticamente al arrancar cuando detecta las referencias en `opencode.jsonc`.
+### Instalar plugins manualmente
+
+OpenCode **deberia** instalar los plugins automaticamente al arrancar. Si no lo hace, instala manualmente desde el TUI de OpenCode:
+
+```
+/install-plugin opencode-kinnycode-memory
+```
+
+Para otros plugins:
+```
+/install-plugin mem0
+/install-plugin lancedb-opencode-pro
+```
+
+### Verificar que el plugin se cargo
+
+Despues de instalar, verifica que las herramientas esten disponibles:
+
+```
+# En el TUI de OpenCode, ejecuta:
+indexar_archivo
+```
+
+Si ves las herramientas de memoria, el plugin esta activo.
 
 ---
 
 ## 1.6 Siguiente paso
 
 Una vez instalado, ve a [02 - Inicializar proyecto nuevo](02-inicializar-proyecto-nuevo.md).
+

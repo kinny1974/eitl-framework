@@ -61,7 +61,17 @@ cd ../my-project
 opencode
 ```
 
-OpenCode reads `opencode.jsonc` and installs plugins automatically.
+OpenCode reads `opencode.jsonc`.
+
+### Install Memory Plugin (if using memory mode)
+
+If you chose memory mode, install the plugin from the OpenCode TUI:
+
+```
+/install-plugin opencode-kinnycode-memory
+```
+
+> **Note**: OpenCode should auto-install plugins, but manual installation may be required.
 
 ---
 
@@ -121,3 +131,4 @@ This will generate:
 - Read the full [README](README.md) for detailed documentation
 - Check [Troubleshooting](README.md#troubleshooting) if you have issues
 - Explore the available [commands](README.md#pipeline-usage)
+

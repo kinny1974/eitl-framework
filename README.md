@@ -105,7 +105,32 @@ cd ../my-project
 opencode
 ```
 
-OpenCode reads `opencode.jsonc` and installs the configured plugins automatically.
+OpenCode reads `opencode.jsonc`.
+
+### Step 3: Install Memory Plugin (if using memory mode)
+
+If you chose memory mode, install the plugin manually from the OpenCode TUI:
+
+```
+/install-plugin opencode-kinnycode-memory
+```
+
+For other plugins:
+```
+/install-plugin mem0
+/install-plugin lancedb-opencode-pro
+```
+
+> **Note**: OpenCode should auto-install plugins, but in some cases manual installation is required.
+
+### Step 4: Verify
+
+```
+# In the TUI, run:
+indexar_archivo
+```
+
+If you see the memory tools, the plugin is active.
 
 ### Parametrized Mode
 
@@ -305,3 +330,4 @@ opencode
 - **Repository**: https://github.com/kinny1974/eitl-framework
 - **KinnyCodeMemory**: https://github.com/kinny1974/kinnyCodeMemory
 - **OpenCode**: https://opencode.ai
+

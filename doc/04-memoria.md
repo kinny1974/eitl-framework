@@ -174,3 +174,4 @@ Crear `~/.config/opencode/lancedb-opencode-pro.json`:
 
 
 
+
