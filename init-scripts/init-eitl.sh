@@ -213,7 +213,7 @@ generate_config() {
     {
         echo '{'
         echo '  "$schema": "https://opencode.ai/schema.json",'
-        echo '  "plugins": ['
+        echo '  "plugin": ['
 
         # Plugin de memoria
         if [ "$CONFIG_MEMORY_MODE" != "standalone" ]; then

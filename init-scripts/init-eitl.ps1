@@ -236,7 +236,7 @@ function New-ProjectConfig {
     $lines = @()
     $lines += '{'
     $lines += '  "$schema": "https://opencode.ai/schema.json",'
-    $lines += '  "plugins": ['
+    $lines += '  "plugin": ['
 
     # Plugin de memoria
     if ($Config.MemoryMode -ne "standalone") {
