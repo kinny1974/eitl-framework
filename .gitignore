@@ -1,3 +1,5 @@
 # Artefactos de release generados localmente (no se versionan).
 # Regenerar con: powershell Compress-Archive (ver QUICKSTART.md)
 eitl-framework-*.zip
+
+.opencode/
