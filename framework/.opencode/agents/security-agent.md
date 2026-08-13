@@ -5,8 +5,31 @@ permission:
   read: allow
   edit: allow
   bash:
-    allow: ["grep", "rg", "find", "dir", "Get-ChildItem", "Get-Content", "Select-String", "git", "npm", "python", "pip", "bandit", "semgrep", "nmap", "sqlmap", "nikto", "gitleaks", "trufflehog", "snyk", "npm audit", "pip-audit", "safety", "checkov", "tfsec"]
-    deny: ["Remove-Item", "Clear-Host", "Stop-Process", "Kill", "format", "diskpart", "reg", "net user", "netsh", "powershell -command", "cmd /c", "start", "Invoke-Expression", "Invoke-Command"]
+    "*": deny
+    "grep": allow
+    "rg": allow
+    "find": allow
+    "dir": allow
+    "Get-ChildItem": allow
+    "Get-Content": allow
+    "Select-String": allow
+    "git": allow
+    "npm": allow
+    "python": allow
+    "pip": allow
+    "bandit": allow
+    "semgrep": allow
+    "nmap": allow
+    "sqlmap": allow
+    "nikto": allow
+    "gitleaks": allow
+    "trufflehog": allow
+    "snyk": allow
+    "npm audit": allow
+    "pip-audit": allow
+    "safety": allow
+    "checkov": allow
+    "tfsec": allow
   task: deny
   skill: allow
   websearch: allow
