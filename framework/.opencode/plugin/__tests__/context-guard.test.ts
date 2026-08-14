@@ -514,6 +514,132 @@ describe("Context Guard Plugin — unit tests sobre el plugin real (API actual)"
     });
   });
 
+  describe("Estimación de tokens desde mensajes (L3: workaround)", () => {
+    it("estima tokens cuando no hay tokenUsage ni estado persistido (nueva sesión)", async () => {
+      const ctx = {
+        sessionID: "fresh-estimada",
+        agent: "architect",
+        directory: "/project",
+        worktree: "/project",
+        session: {
+          messages: [
+            { role: "system", content: "You are the architect." },
+            { role: "user", content: "Build a REST API" },
+            { role: "assistant", content: "Here is the plan..." },
+          ],
+        },
+      } as any;
+      const out = await plugin.execute({ action: "check", agent: "architect" }, ctx);
+      expect(out).toContain("estimado");
+      expect(out).toContain("Estado:** OK");
+      // 1 system (~120) + 1 user (~150) + 1 assistant (~180) = ~450 tokens
+      expect(out).toContain("450");
+    });
+
+    it("acciones estimate muestra desglose detallado", async () => {
+      const ctx = {
+        sessionID: "estimada-desglose",
+        agent: "architect",
+        directory: "/project",
+        worktree: "/project",
+        session: {
+          messages: [
+            { role: "system", content: "You are the architect." },
+            { role: "user", content: "Build a REST API" },
+            { role: "assistant", content: "Here is the plan..." },
+          ],
+        },
+      } as any;
+      const out = await plugin.execute({ action: "estimate", agent: "architect" }, ctx);
+      expect(out).toContain("Estimación de Tokens");
+      expect(out).toContain("Mensajes totales: 3");
+      expect(out).toContain("System messages");
+      expect(out).toContain("User messages");
+      expect(out).toContain("Assistant messages");
+    });
+
+    it("acciones estimate con mensajes vacíos retorna advertencia", async () => {
+      const ctx = {
+        sessionID: "empty-estimada",
+        agent: "architect",
+        directory: "/project",
+        worktree: "/project",
+        session: { messages: [] },
+      } as any;
+      const out = await plugin.execute({ action: "estimate", agent: "architect" }, ctx);
+      expect(out).toContain("No hay mensajes en la sesión");
+    });
+
+    it("mensajes largos ajustan la estimación (content > 5000 chars)", async () => {
+      // 30000 chars / 3.5 ≈ 8571 tokens (≈7% del contexto), no el default 150
+      const bigContent = "x".repeat(30_000);
+      const ctx = {
+        sessionID: "big-msg-estimada",
+        agent: "architect",
+        directory: "/project",
+        worktree: "/project",
+        session: {
+          messages: [
+            { role: "user", content: bigContent },
+          ],
+        },
+      } as any;
+      const out = await plugin.execute({ action: "check", agent: "architect" }, ctx);
+      // 30000 chars / 3.5 ≈ 8571 tokens (ajustado), no el default 150
+      expect(out).toContain("estimado");
+      // 8571/128000 ≈ 7% → OK (below safe threshold 55%)
+      expect(out).toContain("Estado:** OK");
+    });
+
+    it("mensajes muy largos pueden alcanzar WARNING (content > 100000 chars)", async () => {
+      // 100000 chars / 3.5 ≈ 28571 tokens (≈22% del contexto)
+      const bigContent = "x".repeat(100_000);
+      const ctx = {
+        sessionID: "very-big-msg-estimada",
+        agent: "product-owner",
+        directory: "/project",
+        worktree: "/project",
+        session: {
+          messages: [
+            { role: "user", content: bigContent },
+          ],
+        },
+      } as any;
+      const out = await plugin.execute({ action: "check", agent: "product-owner" }, ctx);
+      expect(out).toContain("estimado");
+      // product-owner safe threshold = 60%, 28571/128000 ≈ 22% → OK
+      expect(out).toContain("Estado:** OK");
+    });
+
+    it("persiste estimación y la reutiliza en el siguiente check", async () => {
+      const ctx1 = {
+        sessionID: "persist-est",
+        agent: "architect",
+        directory: "/project",
+        worktree: "/project",
+        session: {
+          messages: [
+            { role: "system", content: "You are the architect." },
+            { role: "user", content: "Build a REST API" },
+            { role: "assistant", content: "Here is the plan..." },
+          ],
+        },
+      } as any;
+      await plugin.execute({ action: "check", agent: "architect" }, ctx1);
+      // Segundo check sin messages → debería usar la estimación persistida
+      const ctx2 = {
+        sessionID: "persist-est",
+        agent: "architect",
+        directory: "/project",
+        worktree: "/project",
+        session: { messages: [] },
+      } as any;
+      const out = await plugin.execute({ action: "check", agent: "architect" }, ctx2);
+      expect(out).toContain("450"); // la estimación persistida
+      expect(out).toContain("(estimado)");
+    });
+  });
+
   describe("Ramas de cobertura restantes (04 §7.2)", () => {
     it("usa el directorio de estado por defecto cuando falta OPENCODE_STATE_DIR (115)", async () => {
       delete process.env.OPENCODE_STATE_DIR;

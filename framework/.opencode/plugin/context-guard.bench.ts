@@ -109,4 +109,20 @@ describe("context-guard · latencia por acción (fs real en tmpdir)", () => {
   bench("set-threshold · ajuste de umbral", async () => {
     await plugin.execute({ action: "set-threshold", agent: "architect", thresholdOverride: 0.9, dryRun: false }, baseCtx as any);
   });
+
+  bench("estimate · desglose de estimación desde mensajes", async () => {
+    const ctx = {
+      sessionID: "bench-estimate",
+      session: makeSession(),
+    };
+    await plugin.execute({ action: "estimate", agent: "architect", dryRun: false }, ctx as any);
+  });
+
+  bench("check · sin tokenUsage pero con mensajes (estimación)", async () => {
+    const ctx = {
+      sessionID: "bench-estimate-check",
+      session: { messages: makeSession().messages, tokenUsage: undefined },
+    };
+    await plugin.execute({ action: "check", agent: "architect", dryRun: false }, ctx as any);
+  });
 });

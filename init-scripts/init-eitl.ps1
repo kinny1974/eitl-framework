@@ -6,7 +6,7 @@
     Configura un proyecto EitL de forma interactiva o parametrizada.
     Sin valores hardcodeados. Memoria OPCIONAL.
 .NOTES
-    Version: 1.0b
+    Version: 1.0.2a
     Repositorio: https://github.com/kinny1974/eitl-framework
 #>
 
@@ -28,7 +28,7 @@ param(
 function Write-Header {
     Write-Host ""
     Write-Host "==============================================" -ForegroundColor Cyan
-    Write-Host "  EITL Framework - Inicializador v1.0.1b" -ForegroundColor Cyan
+    Write-Host "  EITL Framework - Inicializador v1.0.2a" -ForegroundColor Cyan
     Write-Host "  https://github.com/kinny1974/eitl-framework" -ForegroundColor Gray
     Write-Host "==============================================" -ForegroundColor Cyan
     Write-Host ""
@@ -214,8 +214,107 @@ function Copy-Framework {
 }
 
 # ============================================================================
+# REPARACION AUTOMATICA DE FORMATO DE PERMISOS OBSELETO
+# ============================================================================
+
+function Fix-OldPermissions {
+    param([string]$ProjectDir)
+
+    Write-Step "FIX" "Verificando formato de permisos en agentes..."
+
+    $agentsDir = Join-Path $ProjectDir ".opencode\agents"
+    if (-not (Test-Path $agentsDir)) {
+        Write-Warn "Directorio de agentes no encontrado - skipping fix"
+        return
+    }
+
+    $oldFormatFiles = @()
+    foreach ($agentFile in (Get-ChildItem -Path $agentsDir -Filter "*.md")) {
+        $content = Get-Content $agentFile -Raw
+        if ($content -match '^\s+allow:\s*\[' -or $content -match '^\s+deny:\s*\[') {
+            $oldFormatFiles += $agentFile
+        }
+    }
+
+    if ($oldFormatFiles.Count -eq 0) {
+        Write-Ok "Formato de permisos correcto en todos los agentes"
+        return
+    }
+
+    Write-Warn "Formato de permisos obsoleto detectado en $($oldFormatFiles.Count) archivo(s) - reparando..."
+
+    foreach ($file in $oldFormatFiles) {
+        $content = Get-Content $file -Raw
+        # Replace old allow/deny array format with correct object format
+        # Pattern: bash: then allow: [...] then deny: [...]
+        $content = $content -replace '^\s+bash:\s*$', "  bash:`n    `"*`": deny"
+        # Replace allow array line
+        $content = $content -replace '^\s+allow:\s*\[(.*?)\]', {
+            param($match)
+            $items = $match.Groups[1].Value -split '\s*,\s*' -replace '"', ''
+            $result = @("    `"grep`": allow", "    `"rg`": allow", "    `"find`": allow", "    `"dir`": allow", "    `"Get-ChildItem`": allow", "    `"Get-Content`": allow", "    `"Select-String`": allow", "    `"git`": allow", "    `"npm`": allow", "    `"python`": allow", "    `"pip`": allow", "    `"bandit`": allow", "    `"semgrep`": allow", "    `"nmap`": allow", "    `"sqlmap`": allow", "    `"nikto`": allow", "    `"gitleaks`": allow", "    `"trufflehog`": allow", "    `"snyk`": allow", "    `"npm audit`": allow", "    `"pip-audit`": allow", "    `"safety`": allow", "    `"checkov`": allow", "    `"tfsec`": allow")
+            return ($result -join "`n")
+        }
+        # Remove deny array line (it's already covered by "*": deny)
+        $content = $content -replace '^\s+deny:\s*\[(.*?)\]\r?\n?', ''
+
+        $content | Set-Content $file -Encoding UTF8
+        Write-Ok "Reparado: $($file.Name)"
+    }
+}
+
+# ============================================================================
 # GENERACION DE CONFIGURACION
 # ============================================================================
+
+
+# ============================================================================
+# REPARACION AUTOMATICA DE FORMATO DE PERMISOS OBSELETO
+# ============================================================================
+
+function Fix-OldPermissions {
+    param([string]$ProjectDir)
+
+    Write-Step "FIX" "Verificando formato de permisos en agentes..."
+
+    $agentsDir = Join-Path $ProjectDir ".opencode\agents"
+    if (-not (Test-Path $agentsDir)) {
+        Write-Warn "Directorio de agentes no encontrado - skipping fix"
+        return
+    }
+
+    $oldFormatFiles = @()
+    foreach ($agentFile in (Get-ChildItem -Path $agentsDir -Filter "*.md")) {
+        $fileContent = Get-Content $agentFile -Raw
+        if ($fileContent -match '^\s+allow:\s*\[' -or $fileContent -match '^\s+deny:\s*\[') {
+            $oldFormatFiles += $agentFile
+        }
+    }
+
+    if ($oldFormatFiles.Count -eq 0) {
+        Write-Ok "Formato de permisos correcto en todos los agentes"
+        return
+    }
+
+    Write-Warn "Formato de permisos obsoleto detectado en $($oldFormatFiles.Count) archivo(s) - reparando..."
+
+    foreach ($file in $oldFormatFiles) {
+        $fileContent = Get-Content $file -Raw
+
+        $allowedTools = @("grep","rg","find","dir","Get-ChildItem","Get-Content","Select-String","git","npm","python","pip","bandit","semgrep","nmap","sqlmap","nikto","gitleaks","trufflehog","snyk","npm audit","pip-audit","safety","checkov","tfsec")
+
+        $oldPattern = '^\s+bash:\r?\n\s+allow:\s*\[(.*?)\]\r?\n\s+deny:\s*\[(.*?)\]'
+        $replacement = "  bash:`n    `"*`": deny"
+        foreach ($tool in $allowedTools) {
+            $replacement += "`n    `"" + $tool + "`": allow"
+        }
+
+        $fileContent = $fileContent -replace $oldPattern, $replacement
+
+        $fileContent | Set-Content $file -Encoding UTF8
+        Write-Ok "Reparado: $($file.Name)"
+    }
+}
 
 function New-ProjectConfig {
     param(
@@ -369,6 +468,7 @@ function Test-Installation {
         @{ P = ".opencode\opencode.jsonc"; D = "Config principal" },
         @{ P = ".opencode\tui.json"; D = "Config TUI" },
         @{ P = ".opencode\agents\scrum-master.md"; D = "Agente scrum-master" },
+        @{ P = ".opencode\agents\security-agent.md"; D = "Agente security-agent" },
         @{ P = ".opencode\plugin\context-guard.ts"; D = "Plugin context-guard" },
         @{ P = ".opencode\skills\memory-adapter\SKILL.md"; D = "Skill memory-adapter" }
     )
@@ -436,6 +536,7 @@ if ($currentDirName -eq $config.ProjectName) {
 
 # Copiar framework
 Copy-Framework -ProjectDir $projectDir
+Fix-OldPermissions -ProjectDir $projectDir
 
 # Generar configuracion
 New-ProjectConfig -ProjectDir $projectDir -Config $config
@@ -499,5 +600,8 @@ Write-Host ""
 if (-not $installOk) {
     Write-Warn "Algunos archivos no se encontraron. Verifica el framework."
 }
+
+
+
 
 

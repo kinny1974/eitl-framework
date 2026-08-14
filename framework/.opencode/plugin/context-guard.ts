@@ -81,11 +81,88 @@ interface SessionLike {
   compact?: (opts?: unknown) => Promise<unknown>;
 }
 
+/**
+ * Estima el uso de tokens basado en el conteo de mensajes de la sesión.
+ *
+ * Esta función proporciona un fallback cuando tokenUsage no está disponible
+ * (la API actual de ToolContext no lo expone siempre). Se basa en la heurística
+ * de que cada mensaje tiene aproximadamente 150-200 tokens (promedio para
+ * respuestas LLM con contexto de sistema + interacciones del pipeline).
+ *
+ * @param messages - Array de mensajes de la sesión
+ * @param limit - Límite del contexto (default: 128000)
+ * @returns Objeto con totalEstimado, fuente, y detalle por nivel de mensaje
+ *
+ * Heurística de estimación:
+ *   - system messages: ~120 tokens (instrucciones fijas del sistema)
+ *   - user messages: ~150 tokens (promedio de prompts del usuario)
+ *   - assistant messages: ~180 tokens (promedio de respuestas LLM)
+ *   - total = suma de estimaciones por nivel
+ */
+function estimateTokensFromMessages(
+  messages: Array<{ role?: string; content?: unknown }>,
+  limit: number
+): {
+  totalEstimado: number;
+  fuente: "msg-estimate";
+  detalle: { system: number; user: number; assistant: number };
+} {
+  if (!messages || messages.length === 0) {
+    return { totalEstimado: 0, fuente: "msg-estimate", detalle: { system: 0, user: 0, assistant: 0 } };
+  }
+
+  // Constantes de estimación (tokens promedio por mensaje según nivel)
+  const AVG_SYSTEM_TOKENS = 120; // System prompt + instrucciones
+  const AVG_USER_TOKENS = 150; // Promedio de prompts del usuario
+  const AVG_ASSISTANT_TOKENS = 180; // Promedio de respuestas LLM
+
+  const detalle = { system: 0, user: 0, assistant: 0 };
+
+  for (const msg of messages) {
+    const role = msg.role?.toLowerCase();
+    if (role === "system") {
+      // Si el contenido es largo (>1000 chars), ajustar estimación
+      const contentStr = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
+      if (contentStr && contentStr.length > 1000) {
+        detalle.system += Math.min(
+          Math.ceil(contentStr.length / 3.5), // ~3.5 chars/tok para contenido extenso
+          2000
+        ); // tope de seguridad
+      } else {
+        detalle.system += AVG_SYSTEM_TOKENS;
+      }
+    } else if (role === "user") {
+      const contentStr = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
+      if (contentStr && contentStr.length > 5000) {
+        detalle.user += Math.min(
+          Math.ceil(contentStr.length / 3.5),
+          5000
+        );
+      } else {
+        detalle.user += AVG_USER_TOKENS;
+      }
+    } else if (role === "assistant") {
+      const contentStr = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content);
+      if (contentStr && contentStr.length > 5000) {
+        detalle.assistant += Math.min(
+          Math.ceil(contentStr.length / 3.5),
+          5000
+        );
+      } else {
+        detalle.assistant += AVG_ASSISTANT_TOKENS;
+      }
+    }
+  }
+
+  const totalEstimado = detalle.system + detalle.user + detalle.assistant;
+  return { totalEstimado, fuente: "msg-estimate", detalle };
+}
+
 function getSessionLike(context: ToolContext): SessionLike | undefined {
   return (context as unknown as { session?: SessionLike }).session;
 }
 
-type UsageSource = "live" | "state" | "none";
+type UsageSource = "live" | "state" | "estimated" | "none";
 
 interface GuardState {
   alertsSent: Array<{
@@ -105,6 +182,9 @@ interface GuardState {
   lastAgent?: string;
   lastTokenUsage?: { total: number; at: string };
   lastTokenLimit?: number;
+  // L3: Track whether the last persisted token usage was estimated from messages.
+  // When true, output shows "(estimado)" instead of "(persistido)".
+  lastTokenUsageEstimated?: boolean;
   // L2: umbrales seguros persistentes por agente (acción set-threshold).
   // Sin esto, el ajuste mutaba el perfil compartido AGENTS solo en memoria
   // (perdido al reiniciar y compartido entre sesiones).
@@ -161,7 +241,7 @@ const contextGuardTool = tool({
 
   args: {
     action: tool.schema
-      .enum(["check", "compact", "switch-agent", "report", "set-threshold"])
+      .enum(["check", "compact", "switch-agent", "report", "set-threshold", "estimate"])
       .default("check")
       .describe("What the guard should do"),
 
@@ -215,7 +295,8 @@ const contextGuardTool = tool({
       thresholdOverride ?? state.thresholdOverrides?.[activeAgent] ?? profile.safeThreshold;
 
     // 2) Métricas de uso de tokens:
-    //    live (fuente legacy opcional) → estado persistido → no disponibles
+    //    live (fuente legacy opcional) → estado persistido → estimación por mensajes
+    //    → no disponibles
     const sessionLike = getSessionLike(context);
     const liveUsage = sessionLike?.tokenUsage;
     const liveLimit =
@@ -238,9 +319,26 @@ const contextGuardTool = tool({
     } else if (state.lastTokenUsage && state.lastTokenUsage.total > 0) {
       totalTokens = state.lastTokenUsage.total;
       limit = state.lastTokenLimit || DEFAULT_LIMIT;
-      usageSource = "state";
+      // L3: Si la última persistencia fue estimada, mantener el estado estimado
+      if (state.lastTokenUsageEstimated) {
+        usageSource = "estimated";
+      } else {
+        usageSource = "state";
+      }
     } else {
-      limit = liveLimit || DEFAULT_LIMIT;
+      // L3: Workaround — estimación de tokens basada en conteo de mensajes.
+      // Cuando tokenUsage no está disponible (API actual no lo expone) y no hay
+      // estado persistido, estimamos el uso total basado en la heurística de
+      // 150-200 tokens por mensaje (promedio para respuestas LLM).
+      const messages = sessionLike?.messages;
+      if (messages && messages.length > 0) {
+        const estimate = estimateTokensFromMessages(messages, DEFAULT_LIMIT);
+        totalTokens = estimate.totalEstimado;
+        usageSource = "estimated"; // Diferenciar estimado de persistido real
+        limit = DEFAULT_LIMIT;
+      } else {
+        limit = liveLimit || DEFAULT_LIMIT;
+      }
     }
 
     const ratio = usageSource === "none" ? 0 : totalTokens / limit;
@@ -249,6 +347,27 @@ const contextGuardTool = tool({
 
     if (action === "report") {
       return formatReport(activeAgent, profile, percent, remaining, limit, totalTokens, state);
+    }
+
+    if (action === "estimate") {
+      // Nueva acción: estimación explícita de tokens desde mensajes.
+      // Útil para debugging y cuando se quiere forzar la estimación sin check.
+      const messages = sessionLike?.messages;
+      if (!messages || messages.length === 0) {
+        return "⚠️ No hay mensajes en la sesión para estimar. Contexto vacío o no disponible.";
+      }
+      const estimate = estimateTokensFromMessages(messages, limit || DEFAULT_LIMIT);
+      const estPercent = Math.round((estimate.totalEstimado / (limit || DEFAULT_LIMIT)) * 100);
+      return (
+        `📊 **Estimación de Tokens** | Fuente: conteo de mensajes\n` +
+        `======================================\n` +
+        `Mensajes totales: ${messages.length}\n` +
+        `System messages: ${estimate.detalle.system} tokens (≈120/tok base)\n` +
+        `User messages: ${estimate.detalle.user} tokens (≈150/tok base)\n` +
+        `Assistant messages: ${estimate.detalle.assistant} tokens (≈180/tok base)\n` +
+        `Total estimado: **${formatTokens(estimate.totalEstimado)}** / ${formatTokens(limit || DEFAULT_LIMIT)} (${estPercent}%)\n` +
+        `⚠️ Estimación heurística (150-200 tok/mensaje). No es métrica real.`
+      );
     }
 
     if (action === "set-threshold") {
@@ -281,7 +400,9 @@ const contextGuardTool = tool({
       recommendation =
         "ℹ️ No hay métricas de uso de tokens disponibles: la API actual de " +
         "ToolContext no expone tokenUsage. Ejecuta el guard en una sesión que " +
-        "reporte uso, o compacta manualmente con /compact en el TUI.";
+        "reporte uso, o usa `context-guard({ action: \"estimate\" })` para " +
+        "una estimación heurística basada en conteo de mensajes (≈150-200 tok/msg). " +
+        "También puedes compactar manualmente con /compact en el TUI.";
     } else if (ratio >= criticalThreshold) {
       alertLevel = "critical";
       recommendation =
@@ -307,6 +428,16 @@ const contextGuardTool = tool({
     if (usageSource === "live") {
       state.lastTokenUsage = { total: totalTokens, at: new Date().toISOString() };
       state.lastTokenLimit = limit;
+    }
+    // L3: Persistir estimación de tokens para reutilización en checks posteriores.
+    // Cuando no hay métricas live, la estimación por mensajes se guarda como
+    // referencia para que el siguiente check tenga al menos un fallback.
+    if (usageSource === "estimated") {
+      state.lastTokenUsage = { total: totalTokens, at: new Date().toISOString() };
+      state.lastTokenLimit = limit;
+      state.lastTokenUsageEstimated = true;
+    } else if (usageSource === "state") {
+      state.lastTokenUsageEstimated = false;
     }
     await saveState(sessionId, state);
 
@@ -343,9 +474,11 @@ const contextGuardTool = tool({
     const tokensLine =
       usageSource === "none"
         ? "• Tokens: **no disponibles** (la API actual no expone tokenUsage)"
-        : usageSource === "state"
-          ? `• Tokens useds (persistido): **${formatTokens(totalTokens)}** / ${formatTokens(limit)}`
-          : `• Tokens useds: **${formatTokens(totalTokens)}** / ${formatTokens(limit)}`;
+        : usageSource === "estimated"
+          ? `• Tokens: **${formatTokens(totalTokens)}** / ${formatTokens(limit)} (estimado)`
+          : usageSource === "state"
+            ? `• Tokens useds (persistido): **${formatTokens(totalTokens)}** / ${formatTokens(limit)}`
+            : `• Tokens useds: **${formatTokens(totalTokens)}** / ${formatTokens(limit)}`;
     const percentLine =
       usageSource === "none" ? "• Porcentaje: **—**" : `• Porcentaje: **${percent}%**`;
     const remainingLine =

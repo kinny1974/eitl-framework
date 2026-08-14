@@ -1,0 +1,16 @@
+# EitL Framework v3 - TOON v4.1 Utilities
+# Dependencias para las utilidades de conversión TOON
+
+# Biblioteca oficial de TOON para Python (opcional, se usa como primer intento)
+python-toon>=0.3.0
+
+# Para el gateway y orquestador (comunicación HTTP con modelo)
+requests>=2.31.0
+
+# Para el procesador NL (pipeline NL -> Small Model -> JSON -> TOON)
+httpx>=0.27.0
+pydantic>=2.6.0
+
+# Utilidades adicionales
+rich>=13.7.0
+click>=8.1.0

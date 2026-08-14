@@ -69,6 +69,37 @@ When the plugin `opencode-kinnycode-memory` is configured, use these tools direc
 - `contexto_sesion` — Proactive session context
 - `limpiar_proyecto` — Delete all project data
 
+### Automatic Consolidation Triggers (Phase-Based)
+
+The EitL pipeline triggers `consolidar_memoria` after each mandatory phase:
+
+| Phase | Trigger | Tool Call |
+|-------|---------|-----------|
+| After `/start-SDD` + Gate 1 | Scrum Plan approved | `consolidar_memoria(filter_type="phase-complete")` |
+| After Gate 2 (SDD) | Architecture approved | `consolidar_memoria(filter_type="architecture")` |
+| After Gate 3 (TDD) | TDD Plan approved | `consolidar_memoria(filter_type="tdd")` |
+| After `/start-IMPL` | Implementation done | `consolidar_memoria(filter_type="implementation")` |
+| After `/run-tests` + Gate 4 | Tests passed | `consolidar_memoria(filter_type="tests")` |
+| After `/qa-check` + Gate 5 | QA approved | `consolidar_memoria(filter_type="qa")` |
+| After `/perf-test` + Gate 6 | Performance NFRs met | `consolidar_memoria(filter_type="performance")` |
+
+**Rationale**: After each gate, obsolete intermediate decisions and stale task entries are cleaned up to reduce context pressure. The consolidated memory keeps only:
+- Approved artifacts references
+- Final architectural decisions
+- Current task status
+- Session summary (if context > 60%)
+
+#### Consolidation Parameters
+
+```
+consolidar_memoria(
+  project_id="6b6a8b869aea48ad",
+  filter_type="phase-complete",  # "architecture" | "tdd" | "tests" | "qa" | "performance" | "phase-complete"
+  keep_recent=true,               # Keep last N entries per layer
+  remove_obsolete=true            # Remove entries marked as superseded
+)
+```
+
 #### Project (1 tool)
 - `info_proyecto` — Project statistics
 
@@ -186,6 +217,24 @@ When starting a new session:
 1. If KinnyCode plugin is configured: `recuperar_contexto` retrieves all relevant context
 2. If standalone: Read `eitl-artifacts/CURRENT_STATE.md` to restore project state
 
+### Phase-Based Memory Consolidation (Pipeline Integration)
+
+The ScrumMaster triggers automatic consolidation after each pipeline phase. This reduces context pressure and keeps memory lean:
+
+```
+# After each gate approval (automated by scrum-master):
+consolidar_memoria(filter_type="phase-complete")
+
+# Before heavy delegations (auto by context-guard):
+guardar_conversacion() + guardar_tarea()  # saves state before compaction
+context_guard_check() → if CRITICAL → compact → then continue
+```
+
+**Consolidation benefit**: After consolidation, memory footprint reduces by ~30-50%, freeing context for new pipeline phases. The `consolidar_memoria` tool removes:
+- Superseded intermediate decisions
+- Resolved task entries (automatically archived)
+- Stale conversation fragments (before the current active phase)
+
 ### Agent Memory Operations
 
 Agents can use memory operations directly:
@@ -199,6 +248,9 @@ recuperar_contexto(prompt="What architectural decisions were made?")
 
 # Save a technical decision
 guardar_decision(title="Use PostgreSQL", rationale="ACID compliance required")
+
+# Post-phase consolidation (called by ScrumMaster)
+consolidar_memoria(filter_type="phase-complete")
 ```
 
 ## Migration from MCP Wrapper to Native Plugin
