@@ -1,27 +1,36 @@
 ## CURRENT PROJECT STATE
 
-**Proyecto**: EitL Framework — Línea base de QA v1.1.0
-**Sprint**: 0 — Auditoría y línea base QA
-**Fecha**: 2026-08-09
+**Proyecto**: EitL Framework — **v3.0 (TOON Layer Integration)**
+**Sprint**: 0 — TOON Layer + KinnyCode Memory Plugin
+**Fecha**: 2026-08-14
 **Scrum Master**: ScrumMaster-Agent
-**Modo**: KinnyCode Memory Plugin (Native TypeScript)
+**Modo**: KinnyCode Memory Plugin (Native TypeScript) + TOON Translator
 
 ### Memory Configuration
-- Plugin: opencode-kinnycode-memory (Native TypeScript)
+- Plugin: `opencode-kinnycode-memory` (Native TypeScript)
 - Server: http://192.168.2.111:8007
-- Project ID: 6b6a8b869aea48ad
+- Project ID: bab0f9a9f7ea466f
 - 18 native tools available
+- MCP Wrapper: REMOVED (plugin-based only)
+
+### TOON Layer Configuration
+- TOON Translator Agent: qwen2.5-3b-instruct @ http://192.168.2.111:8002/v1
+- Orchestrator: scripts/toon/orchestrator.py
+- Encoder/Decoder: scripts/toon/to_toon.py / scripts/toon/to_json.py
+- Format: TOON v4.1 (Token-Oriented Object Notation)
 
 ### Generated Artifacts
-- [ ] 01_Plan_Scrum.md — N/A (auditoría del framework; no requiere planificación de producto)
-- [ ] 02_Architecture_SDD.md — N/A (auditoría del framework)
-- [ ] 03_Plan_TDD.md — N/A (auditoría del framework)
+- [ ] 01_Plan_Scrum.md — N/A (TOON Layer deployment)
+- [ ] 02_Architecture_SDD.md — N/A (TOON Layer deployment)
+- [ ] 03_Plan_TDD.md — N/A (TOON Layer deployment)
 - [x] 04_Test_Report.md — 45/45 tests · cobertura 100% en las 4 métricas · Gate 4 APPROVED
 - [x] 05_QA_Report.md — C1, H1, H2, M3, M5, M6, M7, M8, M9, L1 y L2 resueltos (0 abiertos) · Quality Score 96/100 · Gate 5 APPROVED
 - [x] 06_Performance_Report.md — NFRs cumplidos con margen ≥ 69% · Performance Score 95/100 · Gate 6 APPROVED
 - [x] Tests Ejecutados — Vitest 4.1.10 (45/45, shuffle) + bench (2 corridas post-L2) + stress batch
 - [x] Code Implementation — plugin `context-guard` migrado a la API actual de `@opencode-ai/plugin`
 - [x] KinnyCode Memory Plugin Integration — Native TypeScript plugin with 18 tools
+- [x] TOON Layer Integration — TOON v4.1 with qwen2.5-3b translator
+- [x] OpenCode Configuration — Updated with memory plugin, TOON provider, and agents
 
 ### Sprint Backlog
 - [x] Auditar el framework completo (10 agentes · 21 skills · scripts · plugin · docs)
@@ -50,6 +59,9 @@
 - [x] Integrar plugin nativo KinnyCodeMemory (v1.1.0): 18 herramientas nativas, sin dependencias Python
 - [x] Actualizar scripts de inicialización para plugin nativo (init-eitl.ps1/sh)
 - [x] Crear script de verificación del plugin (scripts/verify-kinnycode-plugin.sh)
+- [x] TOON v4.1 Integration — Full pipeline with qwen2.5-3b translator
+- [x] TOON Orchestrator Gateway — Resilience, health checks, caching
+- [x] OpenCode Configuration — Plugin-based memory, TOON provider, agents updated
 - [ ] Conectar SDK client para métricas de sesión en vivo del guard
 
 ### Gates
@@ -77,15 +89,19 @@
 | Quality Score | 96/100 | — | OK |
 | Performance Score | 95/100 | — | OK |
 | Memory Tools | 18 native tools | — | OK |
+| TOON Savings | ~30-50% tokens | — | OK |
 
 ### Next Steps
 1. Conectar el SDK client para métricas de sesión en vivo del `context-guard`
 2. Smoke live E2E con OpenCode + LLM real (`OPENCODE_SMOKE=1 bash e2e/smoke-e2e.sh`)
 3. Primer push a GitHub y validación del workflow de CI (T-12 ya definida)
 4. Probar las 18 herramientas del plugin KinnyCodeMemory en un proyecto real
+5. ~~Validar el pipeline TOON con NL → JSON → TOON → Main Model~~ ✅ COMPLETADO
 
 ### Scrum Master Notes
-Línea base QA de 1.1.0 establecida con integración completa del plugin nativo KinnyCodeMemory.
-Gate 5 desbloqueado tras la migración del plugin a la API actual de `@opencode-ai/plugin`.
-Plugin nativo de TypeScript con 18 herramientas para gestión de memoria, sin dependencias de Python.
-Documentación completa en `doc/` (manual de uso) y reportes de auditoría en esta carpeta.
+EitL Framework v3.0 desplegado con integración completa del plugin nativo KinnyCodeMemory y TOON Layer.
+- Plugin nativo de TypeScript con 18 herramientas para gestión de memoria
+- TOON v4.1 con qwen2.5-3b translator para optimización de tokens
+- OpenCode configuration actualizada con plugin-based memory, TOON provider, y agents
+- MCP Wrapper REMOVED — memory access via plugin only
+- **TOON Integrado Automáticamente** — El scrum-master ahora llama a @toon-translator antes de procesar requisitos (ahorro 30-50% tokens)

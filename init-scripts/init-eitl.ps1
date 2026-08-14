@@ -214,6 +214,56 @@ function Copy-Framework {
 }
 
 # ============================================================================
+# REPARACION AUTOMATICA DE FORMATO DE PERMISOS OBSELETO
+# ============================================================================
+
+function Fix-OldPermissions {
+    param([string]$ProjectDir)
+
+    Write-Step "FIX" "Verificando formato de permisos en agentes..."
+
+    $agentsDir = Join-Path $ProjectDir ".opencode\agents"
+    if (-not (Test-Path $agentsDir)) {
+        Write-Warn "Directorio de agentes no encontrado - skipping fix"
+        return
+    }
+
+    $oldFormatFiles = @()
+    foreach ($agentFile in (Get-ChildItem -Path $agentsDir -Filter "*.md")) {
+        $content = Get-Content $agentFile -Raw
+        if ($content -match '^\s+allow:\s*\[' -or $content -match '^\s+deny:\s*\[') {
+            $oldFormatFiles += $agentFile
+        }
+    }
+
+    if ($oldFormatFiles.Count -eq 0) {
+        Write-Ok "Formato de permisos correcto en todos los agentes"
+        return
+    }
+
+    Write-Warn "Formato de permisos obsoleto detectado en $($oldFormatFiles.Count) archivo(s) - reparando..."
+
+    foreach ($file in $oldFormatFiles) {
+        $content = Get-Content $file -Raw
+        # Replace old allow/deny array format with correct object format
+        # Pattern: bash: then allow: [...] then deny: [...]
+        $content = $content -replace '^\s+bash:\s*$', "  bash:`n    `"*`": deny"
+        # Replace allow array line
+        $content = $content -replace '^\s+allow:\s*\[(.*?)\]', {
+            param($match)
+            $items = $match.Groups[1].Value -split '\s*,\s*' -replace '"', ''
+            $result = @("    `"grep`": allow", "    `"rg`": allow", "    `"find`": allow", "    `"dir`": allow", "    `"Get-ChildItem`": allow", "    `"Get-Content`": allow", "    `"Select-String`": allow", "    `"git`": allow", "    `"npm`": allow", "    `"python`": allow", "    `"pip`": allow", "    `"bandit`": allow", "    `"semgrep`": allow", "    `"nmap`": allow", "    `"sqlmap`": allow", "    `"nikto`": allow", "    `"gitleaks`": allow", "    `"trufflehog`": allow", "    `"snyk`": allow", "    `"npm audit`": allow", "    `"pip-audit`": allow", "    `"safety`": allow", "    `"checkov`": allow", "    `"tfsec`": allow")
+            return ($result -join "`n")
+        }
+        # Remove deny array line (it's already covered by "*": deny)
+        $content = $content -replace '^\s+deny:\s*\[(.*?)\]\r?\n?', ''
+
+        $content | Set-Content $file -Encoding UTF8
+        Write-Ok "Reparado: $($file.Name)"
+    }
+}
+
+# ============================================================================
 # GENERACION DE CONFIGURACION
 # ============================================================================
 

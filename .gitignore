@@ -2,4 +2,18 @@
 # Regenerar con: powershell Compress-Archive (ver QUICKSTART.md)
 eitl-framework-*.zip
 
+# OpenCode config
 .opencode/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# TOON cache
+eitl-artifacts/toon_cache/
+
+# Debug/temp files
+*.tmp
+*.log
+dy
