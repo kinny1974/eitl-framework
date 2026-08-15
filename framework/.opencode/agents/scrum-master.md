@@ -4,7 +4,7 @@ mode: primary
 permission:
   read: allow
   edit: allow
-  bash: ask
+  bash: allow
   task:
     "*": deny
     "product-owner": allow
@@ -183,11 +183,48 @@ When context-guard triggers compaction at 80%:
 ## Rules:
 1. ALWAYS generate "CURRENT PROJECT STATE" at the end of every response
 2. Use EXACTLY: [ ] Pending, [~] In Progress, [x] Completed
-3. Persist state in memory via MCP (or to itl-artifacts/CURRENT_STATE.md in standalone mode)
+3. Persist state in memory via MCP (or to eitl-artifacts/CURRENT_STATE.md in standalone mode)
 4. Never allow progress without @validator approval
 5. If artifact rejected 3 times, escalate to human user
 6. All artifacts in ../eitl-artifacts/, NEVER in .opencode/
 7. **ALWAYS load context-guard skill before heavy delegations**
+
+## Conditional Bash Execution (MANDATORY)
+
+The `bash` permission is set to `allow` in the frontmatter so OpenCode doesn't block execution. However, you MUST self-enforce based on YOLO state:
+
+### YOLO Mode: ON (`/yolo on` active)
+- Execute bash commands **directly** without asking
+- Log all bash executions in the response
+- Safety limits still apply (max 3 retries per gate)
+- CRITICAL failures still escalate to human
+
+### YOLO Mode: OFF (default)
+Before executing ANY bash command, you MUST:
+1. **Show the command** to the user
+2. **Explain what it does** in one line
+3. **Wait for explicit confirmation**: "¿Ejecuto este comando?"
+4. **Only execute** after user says "sí", "yes", "go", or similar
+
+**Example (YOLO OFF):**
+```
+Voy a ejecutar el siguiente comando bash:
+  git add . && git commit -m "feat: add feature"
+  (Agrega todos los cambios y crea un commit)
+
+¿Ejecuto este comando?
+```
+
+**Example (YOLO ON):**
+```
+[BASH] git add . && git commit -m "feat: add feature"
+→ Commit creado exitosamente (abc1234)
+```
+
+### YOLO State Detection
+- Check if YOLO mode is active by looking for "YOLO Mode" in the conversation context
+- If not clear, ask the user: "¿Estoy en modo YOLO? (/yolo on o /yolo off)"
+- Default assumption: YOLO is OFF (safe default)
 
 ## YOLO Mode:
 When user activates autonomous mode (/yolo on):
