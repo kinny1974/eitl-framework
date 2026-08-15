@@ -277,7 +277,8 @@ generate_config() {
             esac
         fi
 
-        echo '    "context-guard"'
+        echo '    "context-guard",'
+        echo '    "opencode-queue"'
         echo '  ],'
         echo '  "provider": {'
         echo '    "toon-translator": {'
@@ -431,6 +432,7 @@ verify_installation() {
         ".opencode/plugin/context-guard.ts:Plugin context-guard"
         ".opencode/skills/memory-adapter/SKILL.md:Skill memory-adapter"
         ".opencode/skills/toon-translator/SKILL.md:Skill toon-translator"
+        ".opencode/skills/eitl-queue/SKILL.md:Skill eitl-queue"
         "scripts/toon/orchestrator.py:TOON Orchestrator"
         "scripts/toon/api_gateway.py:TOON API Gateway"
         "scripts/toon/to_toon.py:TOON Encoder"

@@ -8,7 +8,8 @@
         "projectId": "{{KINNYCODE_PROJECT_ID}}"
       }
     ],
-    "context-guard"
+    "context-guard",
+    "opencode-queue"
   ],
   "provider": {
     "llama-cpp-cpu": {

@@ -404,7 +404,8 @@ function New-ProjectConfig {
         }
     }
 
-    $lines += '    "context-guard"'
+    $lines += '    "context-guard",'
+    $lines += '    "opencode-queue"'
     $lines += '  ],'
     $lines += '  "provider": {'
     $lines += '    "toon-translator": {'
@@ -558,6 +559,7 @@ function Test-Installation {
         @{ P = ".opencode\plugin\context-guard.ts"; D = "Plugin context-guard" },
         @{ P = ".opencode\skills\memory-adapter\SKILL.md"; D = "Skill memory-adapter" },
         @{ P = ".opencode\skills\toon-translator\SKILL.md"; D = "Skill toon-translator" },
+        @{ P = ".opencode\skills\eitl-queue\SKILL.md"; D = "Skill eitl-queue" },
         @{ P = "scripts\toon\orchestrator.py"; D = "TOON Orchestrator" },
         @{ P = "scripts\toon\api_gateway.py"; D = "TOON API Gateway" },
         @{ P = "scripts\toon\to_toon.py"; D = "TOON Encoder" },
