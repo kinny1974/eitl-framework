@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
-# EITL Framework - Inicializador v1.0.1b
-# Sin valores hardcodeados. Memoria OPCIONAL.
+# EITL Framework - Inicializador v1.1.0
+# Sin valores hardcodeados. Memoria OPCIONAL. TOON incluido.
 # https://github.com/kinny1974/eitl-framework
 # ============================================================
 
@@ -197,6 +197,49 @@ copy_framework() {
 }
 
 # ============================================================================
+# COPIA DE HERRAMIENTAS TOON
+# ============================================================================
+
+copy_toon_tools() {
+    local project_dir="$1"
+    echo -e "${CYAN}[TOON] Copiando herramientas TOON...${NC}"
+
+    local framework_scripts_dir="$SCRIPT_DIR/../scripts/toon"
+    local target_scripts_dir="$project_dir/scripts/toon"
+
+    if [ ! -d "$framework_scripts_dir" ]; then
+        write_warn "Directorio scripts/toon no encontrado en framework - skipping"
+        return
+    fi
+
+    # Crear directorio destino si no existe
+    mkdir -p "$target_scripts_dir"
+
+    # Copiar archivos TOON
+    cp -r "$framework_scripts_dir"/* "$target_scripts_dir/"
+    write_ok "Herramientas TOON copiadas a: scripts/toon/"
+
+    # Copiar agente toon-translator
+    local agent_source="$SCRIPT_DIR/../.opencode/agents/toon-translator.md"
+    local agent_target="$project_dir/.opencode/agents/toon-translator.md"
+
+    if [ -f "$agent_source" ]; then
+        cp -f "$agent_source" "$agent_target"
+        write_ok "Agente toon-translator copiado"
+    fi
+
+    # Copiar skill toon-translator
+    local skill_source="$SCRIPT_DIR/../.opencode/skills/toon-translator"
+    local skill_target="$project_dir/.opencode/skills/toon-translator"
+
+    if [ -d "$skill_source" ]; then
+        mkdir -p "$skill_target"
+        cp -r "$skill_source"/* "$skill_target/"
+        write_ok "Skill toon-translator copiado"
+    fi
+}
+
+# ============================================================================
 # GENERACION DE CONFIGURACION
 # ============================================================================
 
@@ -235,7 +278,44 @@ generate_config() {
         fi
 
         echo '    "context-guard"'
-        echo '  ]'
+        echo '  ],'
+        echo '  "provider": {'
+        echo '    "toon-translator": {'
+        echo '      "name": "TOON Translator (Small Model)",'
+        echo '      "npm": "@ai-sdk/openai-compatible",'
+        echo '      "options": {'
+        echo '        "baseURL": "http://192.168.2.111:8002/v1",'
+        echo '        "apiKey": "kinny-hellhouse-2026"'
+        echo '      },'
+        echo '      "models": {'
+        echo '        "qwen2.5-3b-instruct": {'
+        echo '          "name": "qwen2.5-3b-instruct",'
+        echo '          "contextWindow": 8192,'
+        echo '          "maxTokens": 2048,'
+        echo '          "default": true'
+        echo '        }'
+        echo '      }'
+        echo '    }'
+        echo '  },'
+        echo '  "agent": {'
+        echo '    "toon-translator": {'
+        echo '      "description": "TOON Translator Agent. Orquesta la conversión NL a TOON mediante el orquestador Python (scripts/toon/orchestrator.py).",'
+        echo '      "mode": "subagent",'
+        echo '      "prompt": "{file:agents/toon-translator.md}",'
+        echo '      "permission": {'
+        echo '        "read": "allow",'
+        echo '        "edit": "allow",'
+        echo '        "bash": "ask",'
+        echo '        "task": "deny",'
+        echo '        "skill": "allow",'
+        echo '        "websearch": "deny",'
+        echo '        "webfetch": "allow",'
+        echo '        "todowrite": "allow",'
+        echo '        "todoread": "allow"'
+        echo '      },'
+        echo '      "color": "#00BCD4"'
+        echo '    }'
+        echo '  }'
         echo '}'
     } > "$config_path"
 
@@ -347,8 +427,14 @@ verify_installation() {
         ".opencode/opencode.jsonc:Config principal"
         ".opencode/tui.json:Config TUI"
         ".opencode/agents/scrum-master.md:Agente scrum-master"
+        ".opencode/agents/toon-translator.md:Agente toon-translator"
         ".opencode/plugin/context-guard.ts:Plugin context-guard"
         ".opencode/skills/memory-adapter/SKILL.md:Skill memory-adapter"
+        ".opencode/skills/toon-translator/SKILL.md:Skill toon-translator"
+        "scripts/toon/orchestrator.py:TOON Orchestrator"
+        "scripts/toon/api_gateway.py:TOON API Gateway"
+        "scripts/toon/to_toon.py:TOON Encoder"
+        "scripts/toon/to_json.py:TOON Decoder"
     )
 
     for check in "${checks[@]}"; do
@@ -410,6 +496,9 @@ fi
 # Copiar framework
 copy_framework "$PROJECT_DIR"
 
+# Copiar herramientas TOON
+copy_toon_tools "$PROJECT_DIR"
+
 # Generar configuracion
 generate_config "$PROJECT_DIR"
 
@@ -453,7 +542,15 @@ echo ""
 echo -e "  ${YELLOW}Archivos generados:${NC}"
 echo -e "    .opencode/opencode.jsonc"
 echo -e "    .opencode/tui.json"
+echo -e "    .opencode/agents/toon-translator.md"
+echo -e "    .opencode/skills/toon-translator/"
+echo -e "    scripts/toon/"
 echo -e "    ../eitl-artifacts/CURRENT_STATE.md"
+echo ""
+echo -e "  ${YELLOW}TOON Layer:${NC}"
+echo -e "    - Traductor NL -> TOON v4.1 (30-50% ahorro tokens)"
+echo -e "    - Servidor: http://192.168.2.111:8002/v1"
+echo -e "    - Uso: @toon-translator Convert to TOON: [requisito]"
 echo ""
 echo -e "  ${YELLOW}Siguientes pasos:${NC}"
 echo -e "    1. cd $CONFIG_PROJECT_NAME"

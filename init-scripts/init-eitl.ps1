@@ -4,9 +4,9 @@
     Inicializa un proyecto EitL (Engineering in the Loop) con OpenCode.
 .DESCRIPTION
     Configura un proyecto EitL de forma interactiva o parametrizada.
-    Sin valores hardcodeados. Memoria OPCIONAL.
+    Sin valores hardcodeados. Memoria OPCIONAL. TOON incluido.
 .NOTES
-    Version: 1.0.2a
+    Version: 1.1.0
     Repositorio: https://github.com/kinny1974/eitl-framework
 #>
 
@@ -214,6 +214,54 @@ function Copy-Framework {
 }
 
 # ============================================================================
+# COPIA DE HERRAMIENTAS TOON
+# ============================================================================
+
+function Copy-ToolsTOON {
+    param([string]$ProjectDir)
+
+    Write-Step "TOON" "Copiando herramientas TOON..."
+
+    $frameworkScriptsDir = Join-Path $PSScriptRoot "..\scripts\toon"
+    $targetScriptsDir = Join-Path $ProjectDir "scripts\toon"
+
+    if (-not (Test-Path $frameworkScriptsDir)) {
+        Write-Warn "Directorio scripts/toon no encontrado en framework - skipping"
+        return
+    }
+
+    # Crear directorio destino si no existe
+    if (-not (Test-Path $targetScriptsDir)) {
+        New-Item -ItemType Directory -Path $targetScriptsDir -Force | Out-Null
+    }
+
+    # Copiar archivos TOON
+    Copy-Item -Recurse -Force "$frameworkScriptsDir\*" $targetScriptsDir
+    Write-Ok "Herramientas TOON copiadas a: scripts/toon/"
+
+    # Copiar agente toon-translator
+    $agentSource = Join-Path $PSScriptRoot "..\.opencode\agents\toon-translator.md"
+    $agentTarget = Join-Path $ProjectDir ".opencode\agents\toon-translator.md"
+
+    if (Test-Path $agentSource) {
+        Copy-Item -Force $agentSource $agentTarget
+        Write-Ok "Agente toon-translator copiado"
+    }
+
+    # Copiar skill toon-translator
+    $skillSource = Join-Path $PSScriptRoot "..\.opencode\skills\toon-translator"
+    $skillTarget = Join-Path $ProjectDir ".opencode\skills\toon-translator"
+
+    if (Test-Path $skillSource) {
+        if (-not (Test-Path $skillTarget)) {
+            New-Item -ItemType Directory -Path $skillTarget -Force | Out-Null
+        }
+        Copy-Item -Recurse -Force "$skillSource\*" $skillTarget
+        Write-Ok "Skill toon-translator copiado"
+    }
+}
+
+# ============================================================================
 # REPARACION AUTOMATICA DE FORMATO DE PERMISOS OBSELETO
 # ============================================================================
 
@@ -357,7 +405,44 @@ function New-ProjectConfig {
     }
 
     $lines += '    "context-guard"'
-    $lines += '  ]'
+    $lines += '  ],'
+    $lines += '  "provider": {'
+    $lines += '    "toon-translator": {'
+    $lines += '      "name": "TOON Translator (Small Model)",'
+    $lines += '      "npm": "@ai-sdk/openai-compatible",'
+    $lines += '      "options": {'
+    $lines += '        "baseURL": "http://192.168.2.111:8002/v1",'
+    $lines += '        "apiKey": "kinny-hellhouse-2026"'
+    $lines += '      },'
+    $lines += '      "models": {'
+    $lines += '        "qwen2.5-3b-instruct": {'
+    $lines += '          "name": "qwen2.5-3b-instruct",'
+    $lines += '          "contextWindow": 8192,'
+    $lines += '          "maxTokens": 2048,'
+    $lines += '          "default": true'
+    $lines += '        }'
+    $lines += '      }'
+    $lines += '    }'
+    $lines += '  },'
+    $lines += '  "agent": {'
+    $lines += '    "toon-translator": {'
+    $lines += '      "description": "TOON Translator Agent. Orquesta la conversión NL a TOON mediante el orquestador Python (scripts/toon/orchestrator.py).",'
+    $lines += '      "mode": "subagent",'
+    $lines += '      "prompt": "{file:agents/toon-translator.md}",'
+    $lines += '      "permission": {'
+    $lines += '        "read": "allow",'
+    $lines += '        "edit": "allow",'
+    $lines += '        "bash": "ask",'
+    $lines += '        "task": "deny",'
+    $lines += '        "skill": "allow",'
+    $lines += '        "websearch": "deny",'
+    $lines += '        "webfetch": "allow",'
+    $lines += '        "todowrite": "allow",'
+    $lines += '        "todoread": "allow"'
+    $lines += '      },'
+    $lines += '      "color": "#00BCD4"'
+    $lines += '    }'
+    $lines += '  }'
     $lines += '}'
 
     $lines -join "`n" | Set-Content $configPath -Encoding UTF8
@@ -468,9 +553,15 @@ function Test-Installation {
         @{ P = ".opencode\opencode.jsonc"; D = "Config principal" },
         @{ P = ".opencode\tui.json"; D = "Config TUI" },
         @{ P = ".opencode\agents\scrum-master.md"; D = "Agente scrum-master" },
+        @{ P = ".opencode\agents\toon-translator.md"; D = "Agente toon-translator" },
         @{ P = ".opencode\agents\security-agent.md"; D = "Agente security-agent" },
         @{ P = ".opencode\plugin\context-guard.ts"; D = "Plugin context-guard" },
-        @{ P = ".opencode\skills\memory-adapter\SKILL.md"; D = "Skill memory-adapter" }
+        @{ P = ".opencode\skills\memory-adapter\SKILL.md"; D = "Skill memory-adapter" },
+        @{ P = ".opencode\skills\toon-translator\SKILL.md"; D = "Skill toon-translator" },
+        @{ P = "scripts\toon\orchestrator.py"; D = "TOON Orchestrator" },
+        @{ P = "scripts\toon\api_gateway.py"; D = "TOON API Gateway" },
+        @{ P = "scripts\toon\to_toon.py"; D = "TOON Encoder" },
+        @{ P = "scripts\toon\to_json.py"; D = "TOON Decoder" }
     )
 
     $allOk = $true
@@ -538,6 +629,9 @@ if ($currentDirName -eq $config.ProjectName) {
 Copy-Framework -ProjectDir $projectDir
 Fix-OldPermissions -ProjectDir $projectDir
 
+# Copiar herramientas TOON
+Copy-ToolsTOON -ProjectDir $projectDir
+
 # Generar configuracion
 New-ProjectConfig -ProjectDir $projectDir -Config $config
 
@@ -582,7 +676,15 @@ Write-Host ""
 Write-Host "  Archivos generados:" -ForegroundColor Yellow
 Write-Host "    .opencode/opencode.jsonc" -ForegroundColor Gray
 Write-Host "    .opencode/tui.json" -ForegroundColor Gray
+Write-Host "    .opencode/agents/toon-translator.md" -ForegroundColor Gray
+Write-Host "    .opencode/skills/toon-translator/" -ForegroundColor Gray
+Write-Host "    scripts/toon/" -ForegroundColor Gray
 Write-Host "    ../eitl-artifacts/CURRENT_STATE.md" -ForegroundColor Gray
+Write-Host ""
+Write-Host "  TOON Layer:" -ForegroundColor Yellow
+Write-Host "    - Traductor NL -> TOON v4.1 (30-50% ahorro tokens)" -ForegroundColor Gray
+Write-Host "    - Servidor: http://192.168.2.111:8002/v1" -ForegroundColor Gray
+Write-Host "    - Uso: @toon-translator Convert to TOON: [requisito]" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Siguientes pasos:" -ForegroundColor Yellow
 Write-Host "    1. cd $($config.ProjectName)" -ForegroundColor White

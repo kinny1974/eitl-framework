@@ -32,6 +32,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+# Dynamic path detection - works from any directory
+_script_dir = Path(__file__).parent.absolute()
+_project_root = _script_dir.parent.parent  # scripts/toon -> scripts -> project_root
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+
 from scripts.toon.api_gateway import get_structured_json
 from scripts.toon.cache_manager import save as cache_save, load as cache_load
 from scripts.toon.health_checker import check_health
