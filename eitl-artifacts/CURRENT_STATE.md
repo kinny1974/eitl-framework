@@ -97,6 +97,7 @@
 3. Primer push a GitHub y validación del workflow de CI (T-12 ya definida)
 4. Probar las 18 herramientas del plugin KinnyCodeMemory en un proyecto real
 5. ~~Validar el pipeline TOON con NL → JSON → TOON → Main Model~~ ✅ COMPLETADO
+6. ~~TOON tools deploy automático~~ ✅ COMPLETADO
 
 ### Scrum Master Notes
 EitL Framework v3.0 desplegado con integración completa del plugin nativo KinnyCodeMemory y TOON Layer.
@@ -105,3 +106,4 @@ EitL Framework v3.0 desplegado con integración completa del plugin nativo Kinny
 - OpenCode configuration actualizada con plugin-based memory, TOON provider, y agents
 - MCP Wrapper REMOVED — memory access via plugin only
 - **TOON Integrado Automáticamente** — El scrum-master ahora llama a @toon-translator antes de procesar requisitos (ahorro 30-50% tokens)
+- **TOON Deploy Automático** — Los scripts de init ahora copian herramientas TOON a proyectos desplegados (scripts/toon/, agente, skill, configuración)
