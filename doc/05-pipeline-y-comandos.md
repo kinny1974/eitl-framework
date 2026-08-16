@@ -30,17 +30,17 @@
 
 | Comando | Fase | Agente | Salida |
 |---------|------|--------|--------|
-| `/start-SDD [requerimiento]` | Diseño | product-owner → architect → tdd-engineer | `01_Plan_Scrum.md` → `02_Architecture_SDD.md` → `03_Plan_TDD.md` |
-| `/start-TDD [id]` | Diseño (salto) | architect → tdd-engineer | SDD → `03_Plan_TDD.md` |
-| `/start-IMPL [id]` | Implementación | (delegación a dev) | Código fuente |
-| `/run-tests [componente]` | QA | test-runner | `04_Test_Report.md` |
-| `/qa-check` | QA | qa-engineer | `05_QA_Report.md` |
-| `/perf-test` | QA | performance-engineer | `06_Performance_Report.md` |
-| `/regen [scrum\|sdd\|tdd]` | Control | — | Regenera el artefacto indicado |
-| `/status` | Control | scrum-master | Estado actual del pipeline |
-| `/blocker [mensaje]` | Control | scrum-master | Registra un bloqueador |
+| `/start-SDD [plan-name] [req]` | Diseño | product-owner → architect → tdd-engineer | `01_Plan_Scrum.md` → `02_Architecture_SDD.md` → `03_Plan_TDD.md` |
+| `/start-TDD [plan-name]` | Diseño (salto) | architect → tdd-engineer | SDD → `03_Plan_TDD.md` |
+| `/start-IMPL [plan-name] [id]` | Implementación | (delegación a dev) | Código fuente |
+| `/run-tests [plan-name] [comp]` | QA | test-runner | `04_Test_Report.md` |
+| `/qa-check [plan-name]` | QA | qa-engineer | `05_QA_Report.md` |
+| `/perf-test [plan-name]` | QA | performance-engineer | `06_Performance_Report.md` |
+| `/regen [plan-name] [scrum\|sdd\|tdd]` | Control | — | Regenera el artefacto indicado |
+| `/status [plan-name]` | Control | scrum-master | Estado actual del plan / pipeline |
+| `/blocker [plan-name] [msg]` | Control | scrum-master | Registra un bloqueador para el plan |
 | `/context-guard check [agente]` | Control | — | Chequea la ventana de contexto |
-| `/yolo on` / `/yolo off` | Control | scrum-master | Activa/desactiva el modo autónomo |
+| `/yolo on [plan-name]` / `/yolo off` | Control | scrum-master | Activa/desactiva el modo autónomo |
 
 ---
 
@@ -153,22 +153,26 @@ architect 55/70 · tdd-engineer 60/78 · validator 65/80.
 
 ---
 
-## 5.7 Ubicación de los artefactos
+## 5.7 Ubicación de los artefactos (Estructura por Plan)
+
+Los artefactos de cada funcionalidad o plan se organizan en su propio subdirectorio dentro de `../eitl-artifacts/`:
 
 ```
 ../eitl-artifacts/               ← SIEMPRE fuera de .opencode/
-├── 01_Plan_Scrum.md
-├── 02_Architecture_SDD.md
-├── 03_Plan_TDD.md
-├── 04_Test_Report.md
-├── 05_QA_Report.md
-├── 06_Performance_Report.md
-├── CURRENT_STATE.md
-├── TASKS.md                     (standalone)
-└── DECISIONS.md                 (standalone)
+├── <plan-name>/                 # Carpeta dedicada para cada plan (ej: auth-jwt)
+│   ├── 01_Plan_Scrum.md
+│   ├── 02_Architecture_SDD.md
+│   ├── 03_Plan_TDD.md
+│   ├── 04_Test_Report.md
+│   ├── 05_QA_Report.md
+│   ├── 06_Performance_Report.md
+│   └── CURRENT_STATE.md        # Estado específico del plan
+├── CURRENT_STATE.md            # Índice global y puntero al plan activo
+├── TASKS.md                    (standalone global)
+└── DECISIONS.md                (standalone global)
 ```
 
-**Regla de oro**: los artefactos **nunca** se escriben dentro de `.opencode/`.
+**Regla de oro**: los artefactos **nunca** se escriben dentro de `.opencode/` ni directamente en la raíz de `../eitl-artifacts/` (cada plan tiene su subcarpeta dedicada).
 
 ---
 

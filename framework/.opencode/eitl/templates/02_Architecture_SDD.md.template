@@ -16,5 +16,5 @@
 ## 9. Riesgos Tecnicos
 
 ---
-**Ruta de generacion**: `../eitl-artifacts/02_Architecture_SDD.md`
-**NO escribir en**: `.opencode/eitl/artifacts/`
+**Ruta de generacion**: `../eitl-artifacts/<plan-name>/02_Architecture_SDD.md`
+**NO escribir en**: `.opencode/` o en la raíz de `../eitl-artifacts/`
