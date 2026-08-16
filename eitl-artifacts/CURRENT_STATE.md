@@ -2,9 +2,15 @@
 
 **Proyecto**: EitL Framework — **v3.0 (TOON Layer Integration)**
 **Sprint**: 0 — TOON Layer + KinnyCode Memory Plugin
-**Fecha**: 2026-08-14
+**Fecha**: 2026-08-16 (actualizado)
 **Scrum Master**: ScrumMaster-Agent
 **Modo**: KinnyCode Memory Plugin (Native TypeScript) + TOON Translator
+
+### Active Plan (2026-08-16)
+- **Plan**: framework-agent-docs-update → `eitl-artifacts/Framework-Agent-Docs-Update/`
+- **Pipeline**: COMPLETADO ✅ (Tests 51/51 · QA 88/100 · Perf NFRs OK · typecheck 0 errores)
+- **Commit**: `6ceef03` — "feat: Framework Agent Documentation Update"
+- **Push**: ✅ `origin/ver3` (90d6ac6..6ceef03) — working tree clean
 
 ### Memory Configuration
 - Plugin: `opencode-kinnycode-memory` (Native TypeScript)
